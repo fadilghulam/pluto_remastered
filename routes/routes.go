@@ -28,4 +28,14 @@ func Setup(app *fiber.App) {
 	mobileRoute.Get("getProdukGudang", mobile.GetProdukByGudang)
 	mobileRoute.Get("getItemGudang", mobile.GetItemByGudang)
 	mobileRoute.Post("confirmOrder", mobile.ConfirmOrder)
+
+	//sales
+	mobileRoute.Get("getStokProduk", mobile.GetStokProduk)
+	mobileRoute.Get("getListOrder", mobile.GetListOrder)
+	mobileRoute.Post("postOrder", mobile.PostOrder)
+
+	//md
+	mobileRoute.Get("getStokItem", mobile.GetStokItem)
+	mobileRoute.Get("getListOrderMD", mobile.GetListOrderMD)
+	mobileRoute.Post("postOrderMD", mobile.PostOrderMD)
 }

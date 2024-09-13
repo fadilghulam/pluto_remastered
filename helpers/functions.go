@@ -70,6 +70,23 @@ func parseMonthYear(s string) (time.Month, int) {
 	return t.Month(), t.Year()
 }
 
+func ParseInt(s string) int {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return i
+}
+
+func ParseDate(s string) time.Time {
+	layout := "2006-01-02"
+	t, err := time.Parse(layout, s)
+	if err != nil {
+		return time.Now()
+	}
+	return t
+}
+
 // Sort a slice of month-year strings in chronological order
 func SortMonthYear(monthYears []string) []string {
 	sort.SliceStable(monthYears, func(i, j int) bool {

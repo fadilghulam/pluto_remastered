@@ -270,19 +270,21 @@ func GenerateTransactionsUserId(c *fiber.Ctx) error {
 }
 
 func GenerateUserLog(c *fiber.Ctx) error {
-	db.DB.Exec(`INSERT INTO (user_id, user_id_subtitute, branch_id, start_date, end_date)
-											SELECT sq.user_id,
-													COALESCE(sq.user_id_subtitute, -1),
-													sq.branch_id,
-													sq.min_date,
-													DATE(LEAD(sq.min_date, 1) OVER (PARTITION BY sq.user_id ORDER BY sq.user_id, sq.min_date)::date - INTERVAL '1 day')
-											FROM (
-												SELECT branch_id, salesman_id, merchandiser_id, teamleader_id, user_id, user_id_subtitute, MIN(DATE(tanggal_kunjungan)) as min_date
-												FROM kunjungan 
-												GROUP BY branch_id, salesman_id, merchandiser_id, teamleader_id, user_id, user_id_subtitute
-											) sq
-											WHERE sq.user_id IS NOT NULL
-											ORDER BY sq.user_id, sq.min_date`)
+	db.DB.Exec(`INSERT INTO user_log_branch (user_id, user_id_subtitute, branch_id, start_date, end_date)
+				SELECT sq.user_id,
+						COALESCE(sq.user_id_subtitute, -1),
+						sq.branch_id,
+						sq.min_date,
+						DATE(LEAD(sq.min_date, 1) OVER (PARTITION BY sq.user_id ORDER BY sq.user_id, sq.min_date)::date - INTERVAL '1 day')
+				FROM (
+					SELECT branch_id, salesman_id, merchandiser_id, teamleader_id, user_id, user_id_subtitute, MIN(DATE(tanggal_kunjungan)) as min_date
+					FROM kunjungan 
+					GROUP BY branch_id, salesman_id, merchandiser_id, teamleader_id, user_id, user_id_subtitute
+				) sq
+				WHERE sq.user_id IS NOT NULL
+				ORDER BY sq.user_id, sq.min_date
+				ON CONFLICT (user_id, branch_id, start_date, user_id_subtitute)
+				DO NOTHING`)
 
 	return c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
 		Message: "Cron success",

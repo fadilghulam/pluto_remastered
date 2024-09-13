@@ -302,5 +302,249 @@ func ConfirmOrder(c *fiber.Ctx) error {
 		Message: "Order barhasil dikonfirmasi",
 		Success: true,
 	})
+}
 
+func GetStokProduk(c *fiber.Ctx) error {
+	type TemplateInputUser struct {
+		UserId *string `json:"userId"`
+		Date   *string `json:"date"`
+	}
+
+	inputUser := new(TemplateInputUser)
+	err := c.QueryParser(inputUser)
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan input data",
+			Success: false,
+		})
+	}
+
+	where := ""
+
+	if inputUser.Date != nil {
+		where = " AND DATE(ss2.tanggal_stok) <= DATE('" + *inputUser.Date + "')"
+	}
+
+	dataMax, err := helpers.ExecuteQuery(
+		fmt.Sprintf(`SELECT 
+									MAX (ss2.tanggal_stok) AS tgl, 
+									ss2.user_id 
+									FROM 
+									PUBLIC.stok_salesman ss2 
+									WHERE ss2.user_id IN(%s) %s 
+									GROUP BY ss2.user_id
+									LIMIT 1`, *inputUser.UserId, where))
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan data stok",
+			Success: false,
+		})
+	}
+
+	if len(dataMax) == 0 {
+		return c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
+			Message: "Data stok tidak ditemukan",
+			Success: false,
+		})
+	}
+
+	templateQuery := `WITH ssr AS
+                (
+                    SELECT ssr.user_id, ssr.produk_id, ssr.condition, ssr.pita,
+                    SUM(CASE WHEN aksi ='ORDER' THEN COALESCE(ssr.jumlah,0) ELSE 0 END) AS order,
+                    SUM(CASE WHEN aksi ='RETUR' THEN COALESCE(ssr.jumlah,0) ELSE 0 END) AS retur
+                    FROM stok_salesman_riwayat ssr 
+                    WHERE TRUE AND ssr.is_validate = 1 AND ssr.user_id = {{.QDataMaxUserId}} 
+                    AND DATE(ssr.tanggal_riwayat) = DATE('{{.QDataMaxTanggal}}')
+                    GROUP BY ssr.user_id, ssr.produk_id, ssr.condition, ssr.pita
+                )
+
+                    SELECT  ss.id, 
+                            ss.stok_gudang_id, 
+                            ss.user_id, 
+                            ss.produk_id, 
+                            ss.tanggal_stok, 
+                            ss.dtm_crt, 
+                            ss.dtm_upd, 
+                            ss.confirm_key, 
+                            ss.is_complete, 
+                            ss.tanggal_so, 
+                            ss.so_admin_gudang_id, 
+                            ss.condition, 
+                            ss.pita, 
+                            (ss.stok_awal - SUM(COALESCE(ssr.order,0))) as stok_awal, 
+                            SUM(COALESCE(ssr.order,0)) orders, 
+                            SUM(COALESCE(ssr.order,0)) as returs, 
+                            ss.stok_akhir 
+                    FROM
+                    PUBLIC.stok_salesman ss
+                    LEFT JOIN ssr
+                        ON ss.user_id = ssr.user_id
+                        AND ss.produk_id = ssr.produk_id
+                        AND ss.condition = ssr.condition
+                        AND ss.pita = ssr.pita
+                    WHERE ss.condition = ('GOOD') AND ss.user_id = {{.QDataMaxUserId}} AND DATE(ss.tanggal_stok) = DATE('{{.QDataMaxTanggal}}')
+                    GROUP BY ss.id`
+
+	templateParamQuery := map[string]interface{}{
+		"QDataMaxUserId":  dataMax[0]["user_id"],
+		"QDataMaxTanggal": dataMax[0]["tgl"],
+	}
+
+	query1, err := helpers.PrepareQuery(templateQuery, templateParamQuery)
+
+	if err != nil {
+		fmt.Println(err)
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika generate query",
+			Success: false,
+		})
+	}
+
+	returnData, err := helpers.NewExecuteQuery(query1)
+
+	if err != nil {
+		fmt.Println(err)
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika eksekusi query",
+			Success: false,
+		})
+	}
+
+	if len(returnData) == 0 {
+		return c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
+			Message: "Data stok tidak ditemukan",
+			Success: false,
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helpers.Response{
+		Message: "Data stok berhasil diambil",
+		Data:    returnData,
+		Success: true,
+	})
+}
+
+func GetStokItem(c *fiber.Ctx) error {
+	type TemplateInputUser struct {
+		UserId *string `json:"userId"`
+		Date   *string `json:"date"`
+	}
+
+	inputUser := new(TemplateInputUser)
+	err := c.QueryParser(inputUser)
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan input data",
+			Success: false,
+		})
+	}
+
+	where := ""
+
+	if inputUser.Date != nil {
+		where = " AND DATE(ss2.tanggal_stok) <= DATE('" + *inputUser.Date + "')"
+	}
+
+	dataMax, err := helpers.ExecuteQuery(
+		fmt.Sprintf(`SELECT 
+						MAX (ss2.tanggal_stok) AS tgl, 
+						ss2.user_id 
+						FROM 
+						md.stok_merchandiser ss2 
+						WHERE ss2.user_id IN(%s) %s 
+						GROUP BY ss2.user_id
+						LIMIT 1`, *inputUser.UserId, where))
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan data stok",
+			Success: false,
+		})
+	}
+
+	if len(dataMax) == 0 {
+		return c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
+			Message: "Data stok tidak ditemukan",
+			Success: false,
+		})
+	}
+
+	templateQuery := `WITH ssr AS
+                (
+                    SELECT ssr.user_id, ssr.item_id,
+                    SUM(CASE WHEN aksi ='ORDER' THEN COALESCE(ssr.jumlah,0) ELSE 0 END) AS order,
+                    SUM(CASE WHEN aksi ='RETUR' THEN COALESCE(ssr.jumlah,0) ELSE 0 END) AS retur
+					FROM
+            		md.stok_merchandiser_riwayat ssr 
+                    WHERE TRUE AND ssr.is_validate = 1 AND ssr.user_id = {{.QDataMaxUserId}} 
+                    AND DATE(ssr.tanggal_riwayat) = DATE('{{.QDataMaxTanggal}}')
+                    GROUP BY ssr.user_id, ssr.item_id
+                )
+
+                    SELECT  ss.id, 
+                            ss.stok_gudang_id, 
+                            ss.user_id, 
+                            ss.item_id, 
+                            ss.tanggal_stok, 
+                            ss.dtm_crt, 
+                            ss.dtm_upd, 
+                            ss.confirm_key, 
+                            ss.is_complete, 
+                            ss.tanggal_so, 
+                            ss.so_admin_gudang_id,
+                            (ss.stok_awal - SUM(COALESCE(ssr.order,0))) as stok_awal, 
+                            SUM(COALESCE(ssr.order,0)) orders, 
+                            SUM(COALESCE(ssr.order,0)) as returs, 
+                            ss.stok_akhir 
+                    FROM
+                    md.stok_merchandiser ss
+                    LEFT JOIN ssr
+                        ON ss.user_id = ssr.user_id
+                        AND ss.item_id = ssr.item_id
+                    WHERE ss.user_id = {{.QDataMaxUserId}} AND DATE(ss.tanggal_stok) = DATE('{{.QDataMaxTanggal}}')
+                    GROUP BY ss.id`
+
+	templateParamQuery := map[string]interface{}{
+		"QDataMaxUserId":  dataMax[0]["user_id"],
+		"QDataMaxTanggal": dataMax[0]["tgl"],
+	}
+
+	query1, err := helpers.PrepareQuery(templateQuery, templateParamQuery)
+
+	if err != nil {
+		fmt.Println(err)
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika generate query",
+			Success: false,
+		})
+	}
+
+	returnData, err := helpers.NewExecuteQuery(query1)
+
+	if err != nil {
+		fmt.Println(err)
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika eksekusi query",
+			Success: false,
+		})
+	}
+
+	if len(returnData) == 0 {
+		return c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
+			Message: "Data stok tidak ditemukan",
+			Success: false,
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helpers.Response{
+		Message: "Data stok berhasil diambil",
+		Data:    returnData,
+		Success: true,
+	})
 }
