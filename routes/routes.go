@@ -1,0 +1,31 @@
+package routes
+
+import (
+	"pluto_remastered/controllers"
+	mobile "pluto_remastered/controllers/mobile"
+
+	"github.com/gofiber/fiber/v2"
+)
+
+func Setup(app *fiber.App) {
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.SendString("Landing Page!")
+	})
+
+	// app.Get("/cronGenerateUserId", controllers.GenerateTransactionsUserId)
+	// app.Get("/testCronGenerateUserId", controllers.TestGenerateUserId)
+	// app.Get("/cronGenerateUserLog", controllers.GenerateUserLog)
+
+	officeRoute := app.Group("office")
+	// officeRoute.Use(AuthMiddleware)
+
+	officeRoute.Get("/getProductTrends", controllers.GetProductTrends)
+	officeRoute.Get("/TestQuery", controllers.TestQuery)
+	officeRoute.Get("/getSalesmanDaily", controllers.GetSalesmanDailySales)
+
+	mobileRoute := app.Group("pluto-mobile")
+	mobileRoute.Get("getGudang", mobile.GetGudang)
+	mobileRoute.Get("getProdukGudang", mobile.GetProdukByGudang)
+	mobileRoute.Get("getItemGudang", mobile.GetItemByGudang)
+	mobileRoute.Post("confirmOrder", mobile.ConfirmOrder)
+}
