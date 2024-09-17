@@ -3,11 +3,27 @@ package structs
 import (
 	"database/sql/driver"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
 	"github.com/lib/pq"
 )
+
+func GetStructInstanceByTableName(tableName string) (interface{}, error) {
+	// Map table names to struct types
+	tableStructMap := map[string]reflect.Type{
+		TableNameCustomerHistory: reflect.TypeOf(CustomerHistory{}),
+		TableNameCustomerKtp:     reflect.TypeOf(CustomerKtp{}),
+		TableNameCustomerTokoku:  reflect.TypeOf(CustomerTokoku{}),
+	}
+
+	if structType, exists := tableStructMap[tableName]; exists {
+		// Create a new instance of the struct and return it
+		return reflect.New(structType).Interface(), nil
+	}
+	return nil, fmt.Errorf("no struct found for table name: %s", tableName)
+}
 
 type Int32Array []int32
 

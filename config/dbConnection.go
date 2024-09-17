@@ -89,8 +89,21 @@ func GenerateStruct(db *gorm.DB) *gorm.DB {
 
 	g.ApplyBasic(
 		// Generate struct `User` based on table `users`
-		g.GenerateModel("otp"),
-		// g.GenerateModel("customer"),
+		// g.GenerateModel("otp"),
+		g.GenerateModel("customer_score_raw"),
+		// g.GenerateModel("customer_ktp"),
+		// g.GenerateModel("customer_tokoku"),
+		// g.GenerateModel("qr_code_history"),
+		// g.GenerateModel("remain_product"),
+		// g.GenerateModel("remain_product_detail"),
+		// g.GenerateModel("validate_customer"),
+		// g.GenerateModel("validate_kunjungan"),
+		// g.GenerateModel("validate_pembayaran_piutang"),
+		// g.GenerateModel("validate_pengembalian"),
+		// g.GenerateModel("validate_penjualan"),
+		// g.GenerateModel("validate_transaksi"),
+		// g.GenerateModel("survey_produk_kompetitor"),
+		// g.GenerateModel("survey_program_kompetitor"),
 
 	// 	// Generate struct `Employee` based on table `users`
 	//    g.GenerateModelAs("users", "Employee"),

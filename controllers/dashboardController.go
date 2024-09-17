@@ -3,7 +3,9 @@ package controllers
 import (
 	"bytes"
 	"fmt"
+	db "pluto_remastered/config"
 	"pluto_remastered/helpers"
+	"pluto_remastered/structs"
 	"strconv"
 	"strings"
 	"text/template"
@@ -206,6 +208,51 @@ func GetProductTrends(c *fiber.Ctx) error {
 		Message:     "Data has been loaded",
 		Data:        data,
 		Statatistik: statistik,
+	})
+}
+
+func GetUserBranch(c *fiber.Ctx) error {
+
+	type TemplateInputUser struct {
+		DateStart *string `json:"dateStart"`
+		DateEnd   *string `json:"dateEnd"`
+		Date      *string `json:"date"`
+		BranchId  *string `json:"branchId"`
+	}
+
+	inputUser := new(TemplateInputUser)
+	err := c.QueryParser(inputUser)
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan input data",
+			Success: false,
+		})
+	}
+
+	var qWhere string
+
+	if inputUser.Date == nil {
+		qWhere = fmt.Sprintf(" AND DATE('%s') >= start_date AND DATE('%s') <= COALESCE(end_date, last_visit_date)", *inputUser.DateStart, *inputUser.DateEnd)
+	} else {
+		qWhere = fmt.Sprintf(" AND DATE('%s') BETWEEN start_date AND COALESCE(end_date, last_visit_date)", *inputUser.Date)
+	}
+
+	userLogBranch := []structs.UserLogBranch{}
+
+	datas := db.DB.Where("branch_id = ? "+qWhere, *inputUser.BranchId).Find(&userLogBranch)
+	if datas.Error != nil {
+		fmt.Println(datas.Error)
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan data",
+			Success: false,
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helpers.Response{
+		Success: true,
+		Message: "Success",
+		Data:    userLogBranch,
 	})
 }
 
