@@ -12,6 +12,9 @@ func Setup(app *fiber.App) {
 		return c.SendString("Landing Page!")
 	})
 
+	app.Post("login", controllers.Login)
+	app.Post("sendOtp", controllers.SendOtp)
+
 	// app.Get("/cronGenerateUserId", controllers.GenerateTransactionsUserId)
 	// app.Get("/testCronGenerateUserId", controllers.TestGenerateUserId)
 	// app.Get("/cronGenerateUserLog", controllers.GenerateUserLog)
@@ -29,6 +32,8 @@ func Setup(app *fiber.App) {
 	mobileRoute.Get("getItemGudang", mobile.GetItemByGudang)
 	mobileRoute.Post("confirmOrder", mobile.ConfirmOrder)
 
+	mobileRoute.Get("getListPengajuan", mobile.GetDataRequests)
+
 	//sales
 	mobileRoute.Get("getStokProduk", mobile.GetStokProduk)
 	mobileRoute.Get("getListOrder", mobile.GetListOrder)
@@ -38,4 +43,7 @@ func Setup(app *fiber.App) {
 	mobileRoute.Get("getStokItem", mobile.GetStokItem)
 	mobileRoute.Get("getListOrderMD", mobile.GetListOrderMD)
 	mobileRoute.Post("postOrderMD", mobile.PostOrderMD)
+
+	mobileRoute.Use(AuthMiddleware)
+	mobileRoute.Post("getRefreshUser", controllers.RefreshDataUser)
 }
