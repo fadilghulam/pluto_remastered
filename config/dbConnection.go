@@ -90,7 +90,10 @@ func GenerateStruct(db *gorm.DB) *gorm.DB {
 	g.ApplyBasic(
 		// Generate struct `User` based on table `users`
 		// g.GenerateModel("otp"),
-		g.GenerateModel("app_versioning"),
+		g.GenerateModel("checkin_request"),
+		g.GenerateModel("delete_kunjungan_request"),
+		g.GenerateModel("customer_relocation"),
+		g.GenerateModel("customer_plafon_over_request"),
 
 	// 	// Generate struct `Employee` based on table `users`
 	//    g.GenerateModelAs("users", "Employee"),
