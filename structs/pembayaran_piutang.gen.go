@@ -12,8 +12,8 @@ const TableNamePembayaranPiutang = "pembayaran_piutang"
 
 // PembayaranPiutang mapped from table <pembayaran_piutang>
 type PembayaranPiutang struct {
-	ID                int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	CustomerID        int64     `gorm:"column:customer_id;not null" json:"customer_id"`
+	ID                string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	CustomerID        string     `gorm:"column:customer_id;not null" json:"customer_id"`
 	SalesmanID        int32     `gorm:"column:salesman_id;default:null" json:"salesman_id"`
 	TanggalPembayaran time.Time `gorm:"column:tanggal_pembayaran;not null" json:"tanggal_pembayaran"`
 	DtmCrt            time.Time `gorm:"column:dtm_crt;not null;default:now()" json:"dtm_crt"`
@@ -24,7 +24,7 @@ type PembayaranPiutang struct {
 	TipePelunasan     int16     `gorm:"column:tipe_pelunasan;default:0" json:"tipe_pelunasan"`
 	SyncKey           string    `gorm:"column:sync_key;default:now()" json:"sync_key"`
 	IsComplete        int16     `gorm:"column:is_complete;default:null" json:"is_complete"`
-	PaymentID         int64     `gorm:"column:payment_id;default:null" json:"payment_id"`
+	PaymentID         string     `gorm:"column:payment_id;default:null" json:"payment_id"`
 	BranchOldID       int16     `gorm:"column:branch_old_id;default:null" json:"branch_old_id"`
 	BranchID          int16     `gorm:"column:branch_id;default:null" json:"branch_id"`
 	SrID              int16     `gorm:"column:sr_id;default:null" json:"sr_id"`
@@ -32,7 +32,7 @@ type PembayaranPiutang struct {
 	AreaID            int32     `gorm:"column:area_id;default:null" json:"area_id"`
 	SalesmanTipe      string    `gorm:"column:salesman_tipe;default:null" json:"salesman_tipe"`
 	LatitudeLongitude string    `gorm:"column:latitude_longitude;default:null" json:"latitude_longitude"`
-	PengembalianID    int64     `gorm:"column:pengembalian_id;default:null" json:"pengembalian_id"`
+	PengembalianID    string     `gorm:"column:pengembalian_id;default:null" json:"pengembalian_id"`
 	CustomerTipe      string    `gorm:"column:customer_tipe;default:null" json:"customer_tipe"`
 	CustomerTypeID    int16     `gorm:"column:customer_type_id;default:null" json:"customer_type_id"`
 	SalesmanTypeID    int16     `gorm:"column:salesman_type_id;default:null" json:"salesman_type_id"`

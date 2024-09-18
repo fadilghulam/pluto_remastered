@@ -28,7 +28,7 @@ func Setup(app *fiber.App) {
 	app.Get("/testCronGenerateUserId", controllers.TestGenerateUserId)
 	app.Get("/cronGenerateUserLog", controllers.GenerateUserLog)
 
-	app.Post("/insertTransactions", controllers.InsertTransactions)
+	app.Post("/insertTransactions", mobile.InsertTransactions)
 
 	officeRoute := app.Group("office")
 	// officeRoute.Use(AuthMiddleware)
@@ -42,6 +42,9 @@ func Setup(app *fiber.App) {
 	mobileRoute.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Landing Page Pluto Mobile!")
 	})
+
+	mobileRoute.Get("getAppVersioning", mobile.GetAppVersioning)
+
 	mobileRoute.Get("getGudang", mobile.GetGudang)
 	mobileRoute.Get("getProdukGudang", mobile.GetProdukByGudang)
 	mobileRoute.Get("getItemGudang", mobile.GetItemByGudang)

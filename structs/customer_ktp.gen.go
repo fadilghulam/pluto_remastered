@@ -12,8 +12,8 @@ const TableNameCustomerKtp = "customer_ktp"
 
 // CustomerKtp mapped from table <customer_ktp>
 type CustomerKtp struct {
-	ID             int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	CustomerID     int64     `gorm:"column:customer_id;default:null" json:"customer_id"`
+	ID             string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	CustomerID     string     `gorm:"column:customer_id;default:null" json:"customer_id"`
 	ImageKtp       string    `gorm:"column:image_ktp;default:null" json:"image_ktp"`
 	CreatedAt      time.Time `gorm:"column:created_at;default:now()" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"column:updated_at;default:now()" json:"updated_at"`

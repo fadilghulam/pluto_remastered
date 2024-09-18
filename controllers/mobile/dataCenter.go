@@ -7,6 +7,63 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+func GetAppVersioning(c *fiber.Ctx) error {
+	datas, err := helpers.NewExecuteQuery(`SELECT app_name,
+                                            JSONB_BUILD_OBJECT(
+                                                'current_version', current_version,
+                                                'minimum_version', minimum_version,
+                                                'force_update', force_update,
+                                                'changelog', changelog,
+                                                'android_url', android_url,
+                                                'ios_url', ios_url
+                                            ) as version,
+                                            JSONB_BUILD_OBJECT(
+                                                'is_maintenance', CASE WHEN is_maintenance = 1 THEN TRUE ELSE FALSE END,
+                                                'message', message
+                                            ) as maintenance,
+                                            JSONB_BUILD_OBJECT(
+                                                'minimum_android_version', minimum_android_version,
+                                                'minimum_ios_version', minimum_ios_version
+                                            ) as os_compatibility,
+                                            JSONB_BUILD_OBJECT(
+                                                'api_base_url', api_base_url,
+                                                'request_timeout', request_timeout,
+                                                'max_upload_size_mb', max_upload_size_mb
+                                            ) as configurations,
+                                            JSONB_BUILD_OBJECT(
+                                                'terms_and_conditions', terms_and_conditions,
+                                                'privacy_policy', privacy_policy,
+                                                'landing', landing
+                                            ) as urls,
+                                            JSONB_BUILD_OBJECT(
+                                                'server_time', now(),
+                                                'timezone', current_setting('TIMEZONE')
+                                            ) as server_info
+                                            FROM app_versioning
+                                            ORDER BY id DESC`)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika eksekusi query",
+			Success: false,
+		})
+	}
+
+	if len(datas) == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(helpers.ResponseWithoutData{
+			Message: "Data tidak ditemukan",
+			Success: false,
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helpers.Response{
+		Message: "Data berhasil ditemukan",
+		Success: true,
+		Data:    datas,
+	})
+}
+
 func GetDataRequests(c *fiber.Ctx) error {
 	type TemplateInputUser struct {
 		UserId *string `json:"userId"`

@@ -12,9 +12,9 @@ const TableNamePenjualan = "penjualan"
 
 // Penjualan mapped from table <penjualan>
 type Penjualan struct {
-	ID                int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	ID                string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
 	SalesmanID        int32     `gorm:"column:salesman_id;default:null" json:"salesman_id"`
-	CustomerID        int64     `gorm:"column:customer_id;default:null" json:"customer_id"`
+	CustomerID        string     `gorm:"column:customer_id;default:null" json:"customer_id"`
 	IsKredit          int32     `gorm:"column:is_kredit;not null" json:"is_kredit"`
 	TipePenjualan     int32     `gorm:"column:tipe_penjualan;not null" json:"tipe_penjualan"`
 	TanggalPenjualan  time.Time `gorm:"column:tanggal_penjualan;not null" json:"tanggal_penjualan"`
@@ -44,7 +44,7 @@ type Penjualan struct {
 	ToRefID           int32     `gorm:"column:to_ref_id;default:null" json:"to_ref_id"`
 	ToRefName         string    `gorm:"column:to_ref_name;default:null" json:"to_ref_name"`
 	ImageBuktiSerah   string    `gorm:"column:image_bukti_serah;default:null" json:"image_bukti_serah"`
-	OutletID          int64     `gorm:"column:outlet_id;default:null" json:"outlet_id"`
+	OutletID          string     `gorm:"column:outlet_id;default:null" json:"outlet_id"`
 	IsDoubleCredit    int16     `gorm:"column:is_double_credit;not null;default:0" json:"is_double_credit"`
 	PlafonDiff        float64   `gorm:"column:plafon_diff;not null;default:0" json:"plafon_diff"`
 	UserID            int32     `gorm:"column:user_id;default:null" json:"user_id"`

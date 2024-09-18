@@ -12,9 +12,9 @@ const TableNameValidatePengembalian = "validate_pengembalian"
 
 // ValidatePengembalian mapped from table <validate_pengembalian>
 type ValidatePengembalian struct {
-	ID                int64     `gorm:"column:id;primaryKey;default:null" json:"id"`
-	CustomerID        int64     `gorm:"column:customer_id;not null" json:"customer_id"`
-	PengembalianID    int64     `gorm:"column:pengembalian_id;not null" json:"pengembalian_id"`
+	ID                string     `gorm:"column:id;primaryKey;default:null" json:"id"`
+	CustomerID        string     `gorm:"column:customer_id;not null" json:"customer_id"`
+	PengembalianID    string     `gorm:"column:pengembalian_id;not null" json:"pengembalian_id"`
 	UserID            int32     `gorm:"column:user_id;not null" json:"user_id"`
 	Datetime          time.Time `gorm:"column:datetime;not null;default:now()" json:"datetime"`
 	IsExist           int16     `gorm:"column:is_exist;not null" json:"is_exist"`

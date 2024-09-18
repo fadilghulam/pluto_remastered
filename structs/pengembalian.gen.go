@@ -12,8 +12,8 @@ const TableNamePengembalian = "pengembalian"
 
 // Pengembalian mapped from table <pengembalian>
 type Pengembalian struct {
-	ID                  int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	PenjualanID         int64     `gorm:"column:penjualan_id;not null" json:"penjualan_id"`
+	ID                  string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	PenjualanID         string     `gorm:"column:penjualan_id;not null" json:"penjualan_id"`
 	TanggalPengembalian time.Time `gorm:"column:tanggal_pengembalian;not null" json:"tanggal_pengembalian"`
 	DtmCrt              time.Time `gorm:"column:dtm_crt;not null;default:now()" json:"dtm_crt"`
 	DtmUpd              time.Time `gorm:"column:dtm_upd;not null;default:now()" json:"dtm_upd"`
@@ -21,7 +21,7 @@ type Pengembalian struct {
 	IsKredit            int32     `gorm:"column:is_kredit;not null" json:"is_kredit"`
 	SalesmanID          int32     `gorm:"column:salesman_id;default:null" json:"salesman_id"`
 	SyncKey             string    `gorm:"column:sync_key;default:now()" json:"sync_key"`
-	CustomerID          int64     `gorm:"column:customer_id;default:null" json:"customer_id"`
+	CustomerID          string     `gorm:"column:customer_id;default:null" json:"customer_id"`
 	BranchIDOld         int16     `gorm:"column:branch_id_old;default:null" json:"branch_id_old"`
 	BranchID            int16     `gorm:"column:branch_id;default:null" json:"branch_id"`
 	SrID                int16     `gorm:"column:sr_id;default:null" json:"sr_id"`

@@ -13,9 +13,36 @@ import (
 func GetStructInstanceByTableName(tableName string) (interface{}, error) {
 	// Map table names to struct types
 	tableStructMap := map[string]reflect.Type{
-		TableNameCustomerHistory: reflect.TypeOf(CustomerHistory{}),
-		TableNameCustomerKtp:     reflect.TypeOf(CustomerKtp{}),
-		TableNameCustomerTokoku:  reflect.TypeOf(CustomerTokoku{}),
+		TableNameCustomerHistory:           reflect.TypeOf([]CustomerHistory{}),
+		TableNameCustomerKtp:               reflect.TypeOf([]CustomerKtp{}),
+		TableNameCustomerScoreRaw:          reflect.TypeOf([]CustomerScoreRaw{}),
+		TableNameCustomerTokoku:            reflect.TypeOf([]CustomerTokoku{}),
+		TableNameCustomer:                  reflect.TypeOf([]Customer{}),
+		TableNameKunjunganLog:              reflect.TypeOf([]KunjunganLog{}),
+		TableNameKunjungan:                 reflect.TypeOf([]Kunjungan{}),
+		TableNameLocationLog:               reflect.TypeOf([]LocationLog{}),
+		TableNamePayment:                   reflect.TypeOf([]Payment{}),
+		TableNamePembayaranPiutangDetail:   reflect.TypeOf([]PembayaranPiutangDetail{}),
+		TableNamePembayaranPiutang:         reflect.TypeOf([]PembayaranPiutang{}),
+		TableNamePengembalianDetail:        reflect.TypeOf([]PengembalianDetail{}),
+		TableNamePengembalian:              reflect.TypeOf([]Pengembalian{}),
+		TableNamePenjualanDetail:           reflect.TypeOf([]PenjualanDetail{}),
+		TableNamePenjualan:                 reflect.TypeOf([]Penjualan{}),
+		TableNamePiutang:                   reflect.TypeOf([]Piutang{}),
+		TableNameQrCodeHistory:             reflect.TypeOf([]QrCodeHistory{}),
+		TableNameRemainProductDetail:       reflect.TypeOf([]RemainProductDetail{}),
+		TableNameRemainProduct:             reflect.TypeOf([]RemainProduct{}),
+		TableNameSurveyProdukKompetitor:    reflect.TypeOf([]SurveyProdukKompetitor{}),
+		TableNameSurveyProgramKompetitor:   reflect.TypeOf([]SurveyProgramKompetitor{}),
+		TableNameValidateCustomer:          reflect.TypeOf([]ValidateCustomer{}),
+		TableNameValidateKunjungan:         reflect.TypeOf([]ValidateKunjungan{}),
+		TableNameValidatePembayaranPiutang: reflect.TypeOf([]ValidatePembayaranPiutang{}),
+		TableNameValidatePengembalian:      reflect.TypeOf([]ValidatePengembalian{}),
+		TableNameValidatePenjualan:         reflect.TypeOf([]ValidatePenjualan{}),
+		TableNameValidateTransaksi:         reflect.TypeOf([]ValidateTransaksi{}),
+		TableNameMdTransactionDetail:       reflect.TypeOf([]MdTransactionDetail{}),
+		TableNameMdTransaction:             reflect.TypeOf([]MdTransaction{}),
+		TableNameMdOutlet:                  reflect.TypeOf([]MdOutlet{}),
 	}
 
 	if structType, exists := tableStructMap[tableName]; exists {
@@ -86,5 +113,36 @@ func (a *Int32Array) Scan(value interface{}) error {
 	}
 
 	*a = ints
+	return nil
+}
+
+type StringArray []string
+
+// Value converts StringArray to a PostgreSQL array-compatible format.
+func (a StringArray) Value() (driver.Value, error) {
+	return fmt.Sprintf("{%s}", strings.Join(a, ",")), nil
+}
+
+// Scan converts a PostgreSQL array to StringArray.
+func (a *StringArray) Scan(value interface{}) error {
+	switch v := value.(type) {
+	case string:
+		trimmed := strings.Trim(v, "{}")
+		if len(trimmed) == 0 {
+			*a = []string{}
+			return nil
+		}
+		*a = strings.Split(trimmed, ",")
+	case []byte:
+		trimmed := strings.Trim(string(v), "{}")
+		if len(trimmed) == 0 {
+			*a = []string{}
+			return nil
+		}
+		*a = strings.Split(trimmed, ",")
+	default:
+		return fmt.Errorf("unsupported data type: %T", v)
+	}
+
 	return nil
 }

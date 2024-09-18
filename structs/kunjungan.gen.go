@@ -12,9 +12,9 @@ const TableNameKunjungan = "kunjungan"
 
 // Kunjungan mapped from table <kunjungan>
 type Kunjungan struct {
-	ID                    int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	ID                    string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
 	SalesmanID            int32     `gorm:"column:salesman_id;default:null" json:"salesman_id"`
-	CustomerID            int64     `gorm:"column:customer_id;default:null" json:"customer_id"`
+	CustomerID            string     `gorm:"column:customer_id;default:null" json:"customer_id"`
 	TanggalKunjungan      time.Time `gorm:"column:tanggal_kunjungan;not null" json:"tanggal_kunjungan"`
 	DtmCrt                time.Time `gorm:"column:dtm_crt;not null;default:now()" json:"dtm_crt"`
 	DtmUpd                time.Time `gorm:"column:dtm_upd;not null;default:now()" json:"dtm_upd"`
@@ -27,7 +27,7 @@ type Kunjungan struct {
 	IsMockLocation        int16     `gorm:"column:is_mock_location;default:null" json:"is_mock_location"`
 	TanggalImage          time.Time `gorm:"column:tanggal_image;default:null" json:"tanggal_image"`
 	IsRoute               int16     `gorm:"column:is_route;not null;default:0" json:"is_route"`
-	AmbilGrosirID         int64     `gorm:"column:ambil_grosir_id;default:-1;comment:-1/null tidak ambil di grosir0 ambil di grosir yg belum terdaftar>0 ambil di grosir yg sudah terdaftar" json:"ambil_grosir_id"` // -1/null tidak ambil di grosir0 ambil di grosir yg belum terdaftar>0 ambil di grosir yg sudah terdaftar
+	AmbilGrosirID         string     `gorm:"column:ambil_grosir_id;default:-1;comment:-1/null tidak ambil di grosir0 ambil di grosir yg belum terdaftar>0 ambil di grosir yg sudah terdaftar" json:"ambil_grosir_id"` // -1/null tidak ambil di grosir0 ambil di grosir yg belum terdaftar>0 ambil di grosir yg sudah terdaftar
 	AmbilGrosirKeterangan string    `gorm:"column:ambil_grosir_keterangan;default:null" json:"ambil_grosir_keterangan"`
 	BranchID              int16     `gorm:"column:branch_id;default:null" json:"branch_id"`
 	SrID                  int16     `gorm:"column:sr_id;default:null" json:"sr_id"`
@@ -46,7 +46,7 @@ type Kunjungan struct {
 	Kecamatan             string    `gorm:"column:kecamatan;default:null" json:"kecamatan"`
 	Kelurahan             string    `gorm:"column:kelurahan;default:null" json:"kelurahan"`
 	CustomerName          string    `gorm:"column:customer_name;default:null" json:"customer_name"`
-	OutletID              int64     `gorm:"column:outlet_id;default:null" json:"outlet_id"`
+	OutletID              string     `gorm:"column:outlet_id;default:null" json:"outlet_id"`
 	SubjectTypeID         int32     `gorm:"column:subject_type_id;default:null" json:"subject_type_id"`
 	OutletTypeID          int32     `gorm:"column:outlet_type_id;default:null" json:"outlet_type_id"`
 	ToRefID               int32     `gorm:"column:to_ref_id;default:null" json:"to_ref_id"`

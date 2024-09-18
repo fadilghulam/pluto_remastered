@@ -12,9 +12,9 @@ const TableNameKunjunganLog = "kunjungan_log"
 
 // KunjunganLog mapped from table <kunjungan_log>
 type KunjunganLog struct {
-	ID                  int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	ID                  string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
 	SalesmanID          int32     `gorm:"column:salesman_id;default:null" json:"salesman_id"`
-	CustomerID          int64     `gorm:"column:customer_id;default:null" json:"customer_id"`
+	CustomerID          string     `gorm:"column:customer_id;default:null" json:"customer_id"`
 	CheckinAt           time.Time `gorm:"column:checkin_at;default:null" json:"checkin_at"`
 	CheckoutAt          time.Time `gorm:"column:checkout_at;default:null" json:"checkout_at"`
 	LatlongIn           string    `gorm:"column:latlong_in;default:null" json:"latlong_in"`
@@ -52,7 +52,7 @@ type KunjunganLog struct {
 	Kecamatan           string    `gorm:"column:kecamatan;default:null" json:"kecamatan"`
 	Kelurahan           string    `gorm:"column:kelurahan;default:null" json:"kelurahan"`
 	CustomerName        string    `gorm:"column:customer_name;default:null" json:"customer_name"`
-	OutletID            int64     `gorm:"column:outlet_id;default:null" json:"outlet_id"`
+	OutletID            string     `gorm:"column:outlet_id;default:null" json:"outlet_id"`
 	SubjectTypeID       int32     `gorm:"column:subject_type_id;default:null" json:"subject_type_id"`
 	OutletTypeID        int32     `gorm:"column:outlet_type_id;default:null" json:"outlet_type_id"`
 	ToRefID             int32     `gorm:"column:to_ref_id;default:null" json:"to_ref_id"`

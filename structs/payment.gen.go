@@ -12,10 +12,10 @@ const TableNamePayment = "payment"
 
 // Payment mapped from table <payment>
 type Payment struct {
-	ID                int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	CustomerID        int64     `gorm:"column:customer_id;not null" json:"customer_id"`
+	ID                string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	CustomerID        string     `gorm:"column:customer_id;not null" json:"customer_id"`
 	SalesmanID        int32     `gorm:"column:salesman_id;default:null" json:"salesman_id"`
-	PenjualanID       int64     `gorm:"column:penjualan_id;not null" json:"penjualan_id"`
+	PenjualanID       string     `gorm:"column:penjualan_id;not null" json:"penjualan_id"`
 	NamaPenyetor      string    `gorm:"column:nama_penyetor;not null" json:"nama_penyetor"`
 	NoReferensi       string    `gorm:"column:no_referensi;default:null" json:"no_referensi"`
 	Tipe              string    `gorm:"column:tipe;not null" json:"tipe"`
@@ -40,7 +40,7 @@ type Payment struct {
 	AreaID            int32     `gorm:"column:area_id;default:null" json:"area_id"`
 	SalesmanTipe      string    `gorm:"column:salesman_tipe;default:null" json:"salesman_tipe"`
 	AccountIDTujuan   int16     `gorm:"column:account_id_tujuan;default:null" json:"account_id_tujuan"`
-	PengembalianID    int64     `gorm:"column:pengembalian_id;default:null" json:"pengembalian_id"`
+	PengembalianID    string     `gorm:"column:pengembalian_id;default:null" json:"pengembalian_id"`
 	CustomerTipe      string    `gorm:"column:customer_tipe;default:null" json:"customer_tipe"`
 	Provinsi          string    `gorm:"column:provinsi;default:null" json:"provinsi"`
 	Kabupaten         string    `gorm:"column:kabupaten;default:null" json:"kabupaten"`

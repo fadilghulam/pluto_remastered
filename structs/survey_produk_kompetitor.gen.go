@@ -12,8 +12,8 @@ const TableNameSurveyProdukKompetitor = "survey_produk_kompetitor"
 
 // SurveyProdukKompetitor mapped from table <survey_produk_kompetitor>
 type SurveyProdukKompetitor struct {
-	ID                 int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	CustomerID         int64     `gorm:"column:customer_id;default:null" json:"customer_id"`
+	ID                 string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	CustomerID         string     `gorm:"column:customer_id;default:null" json:"customer_id"`
 	SalesmanID         int32     `gorm:"column:salesman_id;default:null" json:"salesman_id"`
 	MerchandiserID     int32     `gorm:"column:merchandiser_id;default:null" json:"merchandiser_id"`
 	TeamleaderID       int32     `gorm:"column:teamleader_id;default:null" json:"teamleader_id"`
@@ -27,7 +27,7 @@ type SurveyProdukKompetitor struct {
 	SyncKey            time.Time `gorm:"column:sync_key;default:now()" json:"sync_key"`
 	LatitudeLongitude  string    `gorm:"column:latitude_longitude;default:null" json:"latitude_longitude"`
 	Photo              string    `gorm:"column:photo;default:null" json:"photo"`
-	KompetitorID       int64     `gorm:"column:kompetitor_id;default:null" json:"kompetitor_id"`
+	KompetitorID       string     `gorm:"column:kompetitor_id;default:null" json:"kompetitor_id"`
 }
 
 // TableName SurveyProdukKompetitor's table name

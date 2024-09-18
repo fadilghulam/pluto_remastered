@@ -12,12 +12,12 @@ const TableNameLocationLog = "location_log"
 
 // LocationLog mapped from table <location_log>
 type LocationLog struct {
-	ID                              int64     `gorm:"column:id;primaryKey" json:"id"`
+	ID                              string     `gorm:"column:id;primaryKey" json:"id"`
 	UserID                          int32     `gorm:"column:user_id;default:null" json:"user_id"`
 	Title                           string    `gorm:"column:title;default:null;comment:ex: KUNJUNGAN, PENJUALAN" json:"title"` // ex: KUNJUNGAN, PENJUALAN
 	Subtitle                        string    `gorm:"column:subtitle;default:null" json:"subtitle"`
 	SalesmanID                      int32     `gorm:"column:salesman_id;default:null" json:"salesman_id"`
-	CustomerID                      int64     `gorm:"column:customer_id;default:null" json:"customer_id"`
+	CustomerID                      string     `gorm:"column:customer_id;default:null" json:"customer_id"`
 	Latitude                        float64   `gorm:"column:latitude;default:null" json:"latitude"`
 	Longitude                       float64   `gorm:"column:longitude;default:null" json:"longitude"`
 	Accuracy                        float64   `gorm:"column:accuracy;default:null" json:"accuracy"`

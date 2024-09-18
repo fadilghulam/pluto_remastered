@@ -12,9 +12,9 @@ const TableNameValidatePenjualan = "validate_penjualan"
 
 // ValidatePenjualan mapped from table <validate_penjualan>
 type ValidatePenjualan struct {
-	ID                   int64     `gorm:"column:id;primaryKey;default:null" json:"id"`
-	CustomerID           int64     `gorm:"column:customer_id;not null" json:"customer_id"`
-	PenjualanID          int64     `gorm:"column:penjualan_id;not null" json:"penjualan_id"`
+	ID                   string     `gorm:"column:id;primaryKey;default:null" json:"id"`
+	CustomerID           string     `gorm:"column:customer_id;not null" json:"customer_id"`
+	PenjualanID          string     `gorm:"column:penjualan_id;not null" json:"penjualan_id"`
 	UserID               int32     `gorm:"column:user_id;not null" json:"user_id"`
 	Datetime             time.Time `gorm:"column:datetime;not null;default:now()" json:"datetime"`
 	IsExist              int16     `gorm:"column:is_exist;not null" json:"is_exist"`

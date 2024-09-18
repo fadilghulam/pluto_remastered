@@ -12,14 +12,14 @@ const TableNameValidateTransaksi = "validate_transaksi"
 
 // ValidateTransaksi mapped from table <validate_transaksi>
 type ValidateTransaksi struct {
-	ID                int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	CustomerID        int64     `gorm:"column:customer_id;default:null" json:"customer_id"`
+	ID                string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	CustomerID        string     `gorm:"column:customer_id;default:null" json:"customer_id"`
 	UserID            int32     `gorm:"column:user_id;default:null" json:"user_id"`
 	UserLevelID       int32     `gorm:"column:user_level_id;default:null" json:"user_level_id"`
 	SrID              int16     `gorm:"column:sr_id;default:null" json:"sr_id"`
 	RayonID           int16     `gorm:"column:rayon_id;default:null" json:"rayon_id"`
 	BranchID          int16     `gorm:"column:branch_id;default:null" json:"branch_id"`
-	TransactionID     int64     `gorm:"column:transaction_id;default:null" json:"transaction_id"`
+	TransactionID     string     `gorm:"column:transaction_id;default:null" json:"transaction_id"`
 	TransactionType   string    `gorm:"column:transaction_type;default:null" json:"transaction_type"`
 	Datetime          time.Time `gorm:"column:datetime;default:null" json:"datetime"`
 	IsValid           int16     `gorm:"column:is_valid;default:null" json:"is_valid"`

@@ -12,8 +12,8 @@ const TableNameRemainProductDetail = "remain_product_detail"
 
 // RemainProductDetail mapped from table <remain_product_detail>
 type RemainProductDetail struct {
-	ID              int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	RemainProductID int64     `gorm:"column:remain_product_id;default:null" json:"remain_product_id"`
+	ID              string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	RemainProductID string     `gorm:"column:remain_product_id;default:null" json:"remain_product_id"`
 	ProductID       int32     `gorm:"column:product_id;default:null" json:"product_id"`
 	Qty             int32     `gorm:"column:qty;default:null" json:"qty"`
 	CreatedAt       time.Time `gorm:"column:created_at;default:now()" json:"created_at"`

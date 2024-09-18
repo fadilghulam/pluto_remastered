@@ -12,8 +12,8 @@ const TableNameCustomerTokoku = "customer_tokoku"
 
 // CustomerTokoku mapped from table <customer_tokoku>
 type CustomerTokoku struct {
-	ID             int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	CustomerID     int64     `gorm:"column:customer_id;default:null" json:"customer_id"`
+	ID             string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	CustomerID     string     `gorm:"column:customer_id;default:null" json:"customer_id"`
 	UserID         int64     `gorm:"column:user_id;default:null" json:"user_id"`
 	Datetime       time.Time `gorm:"column:datetime;default:null" json:"datetime"`
 	CreatedAt      time.Time `gorm:"column:created_at;default:now()" json:"created_at"`

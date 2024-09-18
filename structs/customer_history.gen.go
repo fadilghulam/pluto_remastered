@@ -12,9 +12,9 @@ const TableNameCustomerHistory = "customer_history"
 
 // CustomerHistory mapped from table <customer_history>
 type CustomerHistory struct {
-	ID                int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	ID                string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
 	EmployeeID        int64     `gorm:"column:employee_id;default:null" json:"employee_id"`
-	CustomerID        int64     `gorm:"column:customer_id;default:null" json:"customer_id"`
+	CustomerID        string     `gorm:"column:customer_id;default:null" json:"customer_id"`
 	Datetime          time.Time `gorm:"column:datetime;default:null" json:"datetime"`
 	JSONBefore        string    `gorm:"column:json_before;default:null" json:"json_before"`
 	SrID              int16     `gorm:"column:sr_id;default:null" json:"sr_id"`

@@ -12,9 +12,9 @@ const TableNameRemainProduct = "remain_product"
 
 // RemainProduct mapped from table <remain_product>
 type RemainProduct struct {
-	ID         int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	ID         string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
 	SalesmanID int32     `gorm:"column:salesman_id;default:null" json:"salesman_id"`
-	CustomerID int64     `gorm:"column:customer_id;default:null" json:"customer_id"`
+	CustomerID string     `gorm:"column:customer_id;default:null" json:"customer_id"`
 	Datetime   time.Time `gorm:"column:datetime;default:null" json:"datetime"`
 	Photos     string    `gorm:"column:photos;default:null" json:"photos"`
 	Note       string    `gorm:"column:note;default:null" json:"note"`

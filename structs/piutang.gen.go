@@ -12,15 +12,15 @@ const TableNamePiutang = "piutang"
 
 // Piutang mapped from table <piutang>
 type Piutang struct {
-	ID              int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	PenjualanID     int64     `gorm:"column:penjualan_id;not null" json:"penjualan_id"`
+	ID              string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	PenjualanID     string     `gorm:"column:penjualan_id;not null" json:"penjualan_id"`
 	TanggalPiutang  time.Time `gorm:"column:tanggal_piutang;not null" json:"tanggal_piutang"`
 	IsLunas         int32     `gorm:"column:is_lunas;not null" json:"is_lunas"`
 	TanggalLunas    time.Time `gorm:"column:tanggal_lunas;default:null" json:"tanggal_lunas"`
 	DtmCrt          time.Time `gorm:"column:dtm_crt;not null;default:now()" json:"dtm_crt"`
 	DtmUpd          time.Time `gorm:"column:dtm_upd;not null;default:now()" json:"dtm_upd"`
 	TotalPiutang    float64   `gorm:"column:total_piutang;not null" json:"total_piutang"`
-	CustomerID      int64     `gorm:"column:customer_id;not null" json:"customer_id"`
+	CustomerID      string     `gorm:"column:customer_id;not null" json:"customer_id"`
 	SyncKey         string    `gorm:"column:sync_key;default:now()" json:"sync_key"`
 	IsLunas2        int16     `gorm:"column:is_lunas2;default:null" json:"is_lunas2"`
 	CustomerTipe    string    `gorm:"column:customer_tipe;default:null" json:"customer_tipe"`

@@ -12,9 +12,9 @@ const TableNameValidatePembayaranPiutang = "validate_pembayaran_piutang"
 
 // ValidatePembayaranPiutang mapped from table <validate_pembayaran_piutang>
 type ValidatePembayaranPiutang struct {
-	ID                   int64     `gorm:"column:id;primaryKey;default:null" json:"id"`
-	CustomerID           int64     `gorm:"column:customer_id;not null" json:"customer_id"`
-	PembayaranPiutangID  int64     `gorm:"column:pembayaran_piutang_id;not null" json:"pembayaran_piutang_id"`
+	ID                   string     `gorm:"column:id;primaryKey;default:null" json:"id"`
+	CustomerID           string     `gorm:"column:customer_id;not null" json:"customer_id"`
+	PembayaranPiutangID  string     `gorm:"column:pembayaran_piutang_id;not null" json:"pembayaran_piutang_id"`
 	UserID               int32     `gorm:"column:user_id;not null" json:"user_id"`
 	IsExist              int16     `gorm:"column:is_exist;not null" json:"is_exist"`
 	ExistInfo            string    `gorm:"column:exist_info;default:null" json:"exist_info"`

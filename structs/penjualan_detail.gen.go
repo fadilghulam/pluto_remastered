@@ -12,8 +12,8 @@ const TableNamePenjualanDetail = "penjualan_detail"
 
 // PenjualanDetail mapped from table <penjualan_detail>
 type PenjualanDetail struct {
-	ID                  int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	PenjualanID         int64     `gorm:"column:penjualan_id;not null" json:"penjualan_id"`
+	ID                  string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	PenjualanID         string     `gorm:"column:penjualan_id;not null" json:"penjualan_id"`
 	ProdukID            int32     `gorm:"column:produk_id;not null" json:"produk_id"`
 	IDInventorySalesman int64     `gorm:"column:id_inventory_salesman;default:null" json:"id_inventory_salesman"`
 	NoBatch             string    `gorm:"column:no_batch;default:null" json:"no_batch"`

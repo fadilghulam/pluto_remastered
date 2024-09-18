@@ -12,15 +12,15 @@ const TableNameValidateCustomer = "validate_customer"
 
 // ValidateCustomer mapped from table <validate_customer>
 type ValidateCustomer struct {
-	ID                       int64     `gorm:"column:id;primaryKey;default:null" json:"id"`
-	CustomerID               int64     `gorm:"column:customer_id;not null" json:"customer_id"`
+	ID                       string     `gorm:"column:id;primaryKey;default:null" json:"id"`
+	CustomerID               string     `gorm:"column:customer_id;not null" json:"customer_id"`
 	UserID                   int32     `gorm:"column:user_id;not null" json:"user_id"`
 	Datetime                 time.Time `gorm:"column:datetime;not null;default:now()" json:"datetime"`
 	IsExist                  int16     `gorm:"column:is_exist;not null" json:"is_exist"`
 	ExistInfo                string    `gorm:"column:exist_info;default:null" json:"exist_info"`
 	IsDuplicate              int16     `gorm:"column:is_duplicate;default:null" json:"is_duplicate"`
 	CustomerIdsDuplicate     string    `gorm:"column:customer_ids_duplicate;default:null" json:"customer_ids_duplicate"`
-	CustomerIDDuplicateValid int64     `gorm:"column:customer_id_duplicate_valid;default:null" json:"customer_id_duplicate_valid"`
+	CustomerIDDuplicateValid string     `gorm:"column:customer_id_duplicate_valid;default:null" json:"customer_id_duplicate_valid"`
 	IsValidCustomerName      int16     `gorm:"column:is_valid_customer_name;default:null" json:"is_valid_customer_name"`
 	CustomerName             string    `gorm:"column:customer_name;default:null" json:"customer_name"`
 	IsValidOutletName        int16     `gorm:"column:is_valid_outlet_name;default:null" json:"is_valid_outlet_name"`

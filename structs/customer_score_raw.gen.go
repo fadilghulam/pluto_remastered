@@ -12,7 +12,7 @@ const TableNameCustomerScoreRaw = "customer_score_raw"
 
 // CustomerScoreRaw mapped from table <customer_score_raw>
 type CustomerScoreRaw struct {
-	ID          int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	ID          string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
 	CustomerID  string    `gorm:"column:customer_id;default:null" json:"customer_id"`
 	SalesmanID  int32     `gorm:"column:salesman_id;default:null" json:"salesman_id"`
 	BranchID    int32     `gorm:"column:branch_id;default:null" json:"branch_id"`

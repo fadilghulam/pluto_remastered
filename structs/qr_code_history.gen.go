@@ -12,8 +12,8 @@ const TableNameQrCodeHistory = "qr_code_history"
 
 // QrCodeHistory mapped from table <qr_code_history>
 type QrCodeHistory struct {
-	ID             int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	CustomerID     int64     `gorm:"column:customer_id;not null" json:"customer_id"`
+	ID             string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	CustomerID     string     `gorm:"column:customer_id;not null" json:"customer_id"`
 	UserID         int32     `gorm:"column:user_id;not null" json:"user_id"`
 	Action         string    `gorm:"column:action;not null;comment:PEMASANGAN BARU, PENGGANTIAN" json:"action"` // PEMASANGAN BARU, PENGGANTIAN
 	Note           string    `gorm:"column:note;default:null" json:"note"`

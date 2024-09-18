@@ -12,9 +12,9 @@ const TableNamePembayaranPiutangDetail = "pembayaran_piutang_detail"
 
 // PembayaranPiutangDetail mapped from table <pembayaran_piutang_detail>
 type PembayaranPiutangDetail struct {
-	ID                  int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	PembayaranPiutangID int64     `gorm:"column:pembayaran_piutang_id;not null" json:"pembayaran_piutang_id"`
-	PiutangID           int64     `gorm:"column:piutang_id;not null" json:"piutang_id"`
+	ID                  string     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	PembayaranPiutangID string     `gorm:"column:pembayaran_piutang_id;not null" json:"pembayaran_piutang_id"`
+	PiutangID           string     `gorm:"column:piutang_id;not null" json:"piutang_id"`
 	Nominal             int32     `gorm:"column:nominal;not null" json:"nominal"`
 	IsLunas             int16     `gorm:"column:is_lunas;not null;default: 0" json:"is_lunas"`
 	DtmCrt              time.Time `gorm:"column:dtm_crt;not null;default:now()" json:"dtm_crt"`
