@@ -25,6 +25,7 @@ type CustomerPlafonOverRequest struct {
 	DateStart   time.Time `gorm:"column:date_start;not null;default:now()" json:"date_start"`
 	DateEnd     time.Time `gorm:"column:date_end;not null;default:now()" json:"date_end"`
 	ExecutedAt  time.Time `gorm:"column:executed_at;default:null" json:"executed_at"`
+	UserID 		int32 	  `gorm:"column:user_id;not null" json:"userId"`
 }
 
 // TableName CustomerPlafonOverRequest's table name

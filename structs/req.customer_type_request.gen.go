@@ -25,6 +25,7 @@ type CustomerTypeRequest struct {
 	Attachment     string    `gorm:"column:attachment;default:null" json:"attachment"`
 	CreatedAt      time.Time `gorm:"column:created_at;not null;default:now()" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"column:updated_at;not null;default:now()" json:"updated_at"`
+	UserID 		int32 	  `gorm:"column:user_id;not null" json:"userId"`
 }
 
 // TableName CustomerTypeRequest's table name

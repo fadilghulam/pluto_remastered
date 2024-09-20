@@ -22,6 +22,7 @@ type DeleteKunjunganRequest struct {
 	CreatedAt   time.Time `gorm:"column:created_at;not null;default:now()" json:"created_at"`
 	UpdatedAt   time.Time `gorm:"column:updated_at;not null;default:now()" json:"updated_at"`
 	ID          int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
+	UserID 		int32 	  `gorm:"column:user_id;not null" json:"userId"`
 }
 
 // TableName DeleteKunjunganRequest's table name

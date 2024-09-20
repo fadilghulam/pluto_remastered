@@ -43,6 +43,20 @@ func GetStructInstanceByTableName(tableName string) (interface{}, error) {
 		TableNameMdTransactionDetail:       reflect.TypeOf([]MdTransactionDetail{}),
 		TableNameMdTransaction:             reflect.TypeOf([]MdTransaction{}),
 		TableNameMdOutlet:                  reflect.TypeOf([]MdOutlet{}),
+		// TableNameCustomerMoveRequest: reflect.TypeOf([]CustomerMoveRequestHiperion{}),
+		TableNameCheckinRequest:            reflect.TypeOf([]CheckinRequest{}),
+		TableNameCustomerAccessVisitExtra:  reflect.TypeOf([]CustomerAccessVisitExtra{}),
+		TableNameCustomerAccess:            reflect.TypeOf([]CustomerAccess{}),
+		TableNameCustomerMoveRequest:       reflect.TypeOf([]CustomerMoveRequest{}),
+		TableNameCustomerPlafonOverRequest: reflect.TypeOf([]CustomerPlafonOverRequest{}),
+		TableNameCustomerRelocation:        reflect.TypeOf([]CustomerRelocation{}),
+		TableNameCustomerTypeRequest:       reflect.TypeOf([]CustomerTypeRequest{}),
+		TableNameDeleteKunjunganRequest:    reflect.TypeOf([]DeleteKunjunganRequest{}),
+		TableNameRuteMoveRequest:           reflect.TypeOf([]RuteMoveRequest{}),
+		TableNameSalesmanAccessKunjungan:   reflect.TypeOf([]SalesmanAccessKunjungan{}),
+		TableNameSalesmanAccess:            reflect.TypeOf([]SalesmanAccess{}),
+		TableNameSalesmanRequestSo:         reflect.TypeOf([]SalesmanRequestSo{}),
+		TableNameSalesmanRequest:           reflect.TypeOf([]SalesmanRequest{}),
 	}
 
 	if structType, exists := tableStructMap[tableName]; exists {

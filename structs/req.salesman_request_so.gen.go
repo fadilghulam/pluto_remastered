@@ -23,6 +23,7 @@ type SalesmanRequestSo struct {
 	ApproveAt   time.Time `gorm:"column:approve_at;default:null" json:"approve_at"`
 	ApproveID   int32     `gorm:"column:approve_id;default:null" json:"approve_id"`
 	RequestAt   time.Time `gorm:"column:request_at;default:null" json:"request_at"`
+	UserID 		int32 	  `gorm:"column:user_id;not null" json:"userId"`
 }
 
 // TableName SalesmanRequestSo's table name

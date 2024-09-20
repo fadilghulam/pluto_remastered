@@ -30,6 +30,7 @@ type SalesmanAccess struct {
 	IsKreditRetail    int16     `gorm:"column:is_kredit_retail;default:null" json:"isKreditRetail"`
 	IsKreditSubGrosir int16     `gorm:"column:is_kredit_sub_grosir;default:null" json:"isKreditSubGrosir"`
 	IsKreditGrosir    int16     `gorm:"column:is_kredit_grosir;default:null" json:"isKreditGrosir"`
+	UserID 		int32 	  `gorm:"column:user_id;not null" json:"userId"`
 }
 
 // TableName SalesmanAccess's table name

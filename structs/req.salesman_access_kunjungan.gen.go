@@ -29,6 +29,7 @@ type SalesmanAccessKunjungan struct {
 	MaxMinute        int32     `gorm:"column:max_minute;default:null" json:"visitMax"`
 	MaxRadiusOutlet  int32     `gorm:"column:max_radius_outlet;default:null" json:"outletRadius"`
 	MaxRadiusCheckIn int32     `gorm:"column:max_radius_check_in;default:null" json:"checkOutRadius"`
+	UserID 		int32 	  `gorm:"column:user_id;not null" json:"userId"`
 }
 
 // TableName SalesmanAccessKunjungan's table name
