@@ -3,6 +3,7 @@ package helpers
 import (
 	"bytes"
 	"fmt"
+	db "pluto_remastered/config"
 	"strings"
 	"sync"
 	"text/template"
@@ -50,4 +51,18 @@ func ExecuteGORMQueryOrdered(query string, resultsChan chan<- map[int][]*newOrde
 	results, _ := NewExecuteQuery(query)
 
 	resultsChan <- map[int][]*newOrderedmap.OrderedMap{index: results}
+}
+
+func ExecuteGORMQueryWithoutResult(query string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	db.DB.Exec(query)
+}
+
+func ExecuteGORMQueryIndexString(query string, resultsChan chan<- map[string][]map[string]interface{}, index string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	results, _ := ExecuteQuery(query)
+
+	resultsChan <- map[string][]map[string]interface{}{index: results}
 }

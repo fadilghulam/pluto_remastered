@@ -55,7 +55,7 @@ func Connect() {
 	fmt.Println("db connected successfully")
 
 	// go GenerateStruct(db)
-	// GenerateStruct(db)
+	GenerateStruct(db)
 
 	// AutoMigrate(db)
 	//if err := DB.AutoMigrate(&models.Cashier{}, &models.Category{}, &models.Payment{}, &models.PaymentType{}, &models.Product{}, &models.Discount{}, &models.Order{}).Error; err != nil {
@@ -90,10 +90,15 @@ func GenerateStruct(db *gorm.DB) *gorm.DB {
 	g.ApplyBasic(
 		// Generate struct `User` based on table `users`
 		// g.GenerateModel("otp"),
-		g.GenerateModel("checkin_request"),
-		g.GenerateModel("delete_kunjungan_request"),
-		g.GenerateModel("customer_relocation"),
-		g.GenerateModel("customer_plafon_over_request"),
+		g.GenerateModel("customer_type_request"),
+		g.GenerateModel("customer_access_visit_extra"),
+		g.GenerateModel("rute_move_request"),
+		g.GenerateModel("customer_move_request"),
+		g.GenerateModel("customer_access"),
+		g.GenerateModel("salesman_access"),
+		g.GenerateModel("salesman_request_so"),
+		g.GenerateModel("salesman_request"),
+		g.GenerateModel("salesman_access_kunjungan"),
 
 	// 	// Generate struct `Employee` based on table `users`
 	//    g.GenerateModelAs("users", "Employee"),

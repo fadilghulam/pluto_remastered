@@ -945,6 +945,10 @@ func SendCurl(data []byte, method string, url string) (map[string]interface{}, e
 		fmt.Println("Error reading response:", err)
 	}
 
+	if responseData["data"] == nil {
+		return nil, fiber.ErrNotFound
+	}
+
 	switch responseData["data"].(type) {
 	case map[string]interface{}:
 		if len(responseData["data"].(map[string]interface{})) == 0 {

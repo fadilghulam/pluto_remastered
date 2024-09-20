@@ -28,6 +28,10 @@ func Setup(app *fiber.App) {
 	app.Get("/testCronGenerateUserId", controllers.TestGenerateUserId)
 	app.Get("/cronGenerateUserLog", controllers.GenerateUserLog)
 
+	app.Get("/generateFlag", controllers.GenerateFlag)
+	app.Get("/getData", controllers.GetData)
+	app.Get("/getDataToday", controllers.GetDataToday)
+
 	app.Post("/insertTransactions", mobile.InsertTransactions)
 
 	officeRoute := app.Group("office")
