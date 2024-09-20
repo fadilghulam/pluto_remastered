@@ -14,7 +14,7 @@ const TableNameCustomerRelocation = "customer_relocation"
 type CustomerRelocation struct {
 	ID                      int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
 	EmployeeID              int64     `gorm:"column:employee_id;not null" json:"employeeId"`
-	CustomerID              int64     `gorm:"column:customer_id;not null" json:"customerId"`
+	CustomerID              string     `gorm:"column:customer_id;not null" json:"customerId"`
 	RequestAt               time.Time `gorm:"column:request_at;not null;default:now()" json:"request_at"`
 	LatitudeLongitudeBefore string    `gorm:"column:latitude_longitude_before;default:null" json:"latlongBefore"`
 	LatitudeLongitudeAfter  string    `gorm:"column:latitude_longitude_after;default:null" json:"latlongAfter"`
