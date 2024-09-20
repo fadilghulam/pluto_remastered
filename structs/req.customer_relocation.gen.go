@@ -13,11 +13,11 @@ const TableNameCustomerRelocation = "customer_relocation"
 // CustomerRelocation mapped from table <customer_relocation>
 type CustomerRelocation struct {
 	ID                      int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	EmployeeID              int64     `gorm:"column:employee_id;not null" json:"employee_id"`
-	CustomerID              int64     `gorm:"column:customer_id;not null" json:"customer_id"`
+	EmployeeID              int64     `gorm:"column:employee_id;not null" json:"employeeId"`
+	CustomerID              int64     `gorm:"column:customer_id;not null" json:"customerId"`
 	RequestAt               time.Time `gorm:"column:request_at;not null;default:now()" json:"request_at"`
-	LatitudeLongitudeBefore string    `gorm:"column:latitude_longitude_before;default:null" json:"latitude_longitude_before"`
-	LatitudeLongitudeAfter  string    `gorm:"column:latitude_longitude_after;default:null" json:"latitude_longitude_after"`
+	LatitudeLongitudeBefore string    `gorm:"column:latitude_longitude_before;default:null" json:"latlongBefore"`
+	LatitudeLongitudeAfter  string    `gorm:"column:latitude_longitude_after;default:null" json:"latlongAfter"`
 	Note                    string    `gorm:"column:note;default:null" json:"note"`
 	IsApprove               int16     `gorm:"column:is_approve;default:null" json:"is_approve"`
 	ApproveAt               time.Time `gorm:"column:approve_at;default:null" json:"approve_at"`
