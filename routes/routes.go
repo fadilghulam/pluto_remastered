@@ -34,6 +34,9 @@ func Setup(app *fiber.App) {
 
 	app.Post("/insertTransactions", mobile.InsertTransactions)
 
+	serviceRoute := app.Group("service")
+	serviceRoute.Post("doUpload", controllers.DoUpload)
+
 	officeRoute := app.Group("office")
 	// officeRoute.Use(AuthMiddleware)
 
