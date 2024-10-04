@@ -525,3 +525,44 @@ func GetDataToday(c *fiber.Ctx) error {
 		"elapsed": elapsed,
 	})
 }
+
+func GetFlag(c *fiber.Ctx) error {
+
+	userId := c.Query("userId")
+
+	query := fmt.Sprintf(`SELECT 
+            COALESCE(fa.user_id, %v) AS user_id,
+            f.id AS flag_id,
+            f.name AS flag_name,
+            COALESCE(fa.datetime, now()) AS datetime,
+            COALESCE(fa.created_at, now()) AS created_at,
+            COALESCE(fa.updated_at, now()) AS updated_at,
+            string_agg( CASE WHEN fd.source_name LIKE ':Param' THEN (split_part(fd.source_name, '.', 2)) ELSE fd.source_name END,',') AS flag_source_name, fm.is_required,
+            f.is_today
+            FROM public.flag_mapping fm
+            JOIN public.flag f
+            ON fm.flag_id = f.id AND fm.flag_table = 'public.flag_user'
+            LEFT JOIN public.flag_detail fd
+            ON fd.flag_id = f.id
+            LEFT JOIN public.flag_user fa
+            ON fa.flag_id = f.id AND user_id = %v
+			GROUP BY f.id, fa.user_id, fa.flag_id, fm.id`, userId, userId)
+
+	query = strings.ReplaceAll(query, ":Param", "%.%")
+
+	data, err := helpers.NewExecuteQuery(query)
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Something went wrong",
+			Success: false,
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helpers.Response{
+		Message: "Success",
+		Success: true,
+		Data:    data,
+	})
+
+}
