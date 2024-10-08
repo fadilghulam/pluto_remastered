@@ -2,7 +2,10 @@ package controllers
 
 import (
 	"fmt"
+	"math"
 	"pluto_remastered/helpers"
+	"strconv"
+	"sync"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -87,6 +90,29 @@ func GetDataRequests(c *fiber.Ctx) error {
 	} else {
 		whereDate = " CURRENT_DATE"
 	}
+
+	page := c.Query("page")
+	pageSize := c.Query("pageSize")
+
+	var qLimit, qPage string
+	iPage, _ := strconv.Atoi(page)
+	iPageSize, _ := strconv.Atoi(pageSize)
+
+	if pageSize != "" {
+		qLimit = " LIMIT " + pageSize
+	} else {
+		qLimit = " LIMIT 20"
+		iPageSize = 20
+	}
+
+	if page == "" {
+		iPage = 0
+	} else {
+		iPage = iPage - 1
+	}
+
+	tempQ := strconv.Itoa(iPage * iPageSize)
+	qPage = " OFFSET " + tempQ
 
 	templateQuery := `SELECT 'public.checkin_request' as ref_table, 
                         NULL as ref_table_child,
@@ -411,26 +437,55 @@ func GetDataRequests(c *fiber.Ctx) error {
 		})
 	}
 
-	returnData, err := helpers.NewExecuteQuery(query1)
+	var wg sync.WaitGroup
+	resultsChan := make(chan map[int][]map[string]interface{}, 2)
 
-	if err != nil {
-		fmt.Println(err)
-		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
-			Message: "Terjadi kesalahan ketika eksekusi query",
-			Success: false,
-		})
+	queries := []string{
+		query1,
+		query1 + qPage + qLimit,
 	}
 
-	if len(returnData) == 0 {
+	tempResults := make([][]map[string]interface{}, len(queries))
+
+	for i, query := range queries {
+		wg.Add(1)
+		go helpers.ExecuteGORMQuery(query, resultsChan, i, &wg)
+	}
+
+	wg.Wait()
+	close(resultsChan)
+
+	for result := range resultsChan {
+		for index, res := range result {
+			tempResults[index] = res
+		}
+	}
+
+	if len(tempResults) == 0 {
 		return c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
-			Message: "Data stok tidak ditemukan",
-			Success: false,
+			Message: "Data not found",
+			Success: true,
 		})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(helpers.Response{
-		Message: "Data stok berhasil diambil",
-		Data:    returnData,
-		Success: true,
+	type newResponseDataMultiple struct {
+		Message    string      `json:"message"`
+		Success    bool        `json:"success"`
+		Data       interface{} `json:"datas"`
+		TotalPages int         `json:"total_pages"`
+	}
+
+	var tempTotalPages int
+	if len(tempResults[0]) < iPageSize {
+		tempTotalPages = 1
+	} else {
+		tempTotalPages = int(math.Ceil(float64(len(tempResults[0])) / float64(iPageSize)))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(newResponseDataMultiple{
+		Message:    "Data has been loaded successfully",
+		Success:    true,
+		Data:       tempResults[1],
+		TotalPages: tempTotalPages,
 	})
 }

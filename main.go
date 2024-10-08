@@ -16,6 +16,7 @@ func main() {
 	fmt.Println("app running...")
 	//db connection
 	db.Connect()
+	db.ConnectPGX()
 
 	app := fiber.New()
 	app.Use(cors.New(
@@ -25,10 +26,10 @@ func main() {
 	// }
 	))
 	//routing
-	// routes.SocketIoSetup(app)
+	routes.SocketIoSetup(app)
 	routes.Setup(app)
 
 	addr := fmt.Sprintf("%s:%s", os.Getenv("HOST"), os.Getenv("PORT"))
-	// addr := fmt.Sprintf("%s:%s", os.Getenv("HOST"), "4002")
+	// addr := fmt.Sprintf("%s:%s", os.Getenv("HOST"), "4011")
 	log.Fatal(app.Listen(addr))
 }

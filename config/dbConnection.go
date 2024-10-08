@@ -2,12 +2,14 @@ package db
 
 import (
 	// "devecode_app/models"
+	"context"
 	"fmt"
 	"log"
 
 	// "go_sales_api/models"
 	"os"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gen"
@@ -16,6 +18,7 @@ import (
 )
 
 var DB *gorm.DB
+var DBPGX *pgx.Conn
 
 func Connect() {
 	godotenv.Load()
@@ -55,12 +58,36 @@ func Connect() {
 	fmt.Println("db connected successfully")
 
 	// go GenerateStruct(db)
-	GenerateStruct(db)
+	// GenerateStruct(db)
 
 	// AutoMigrate(db)
 	//if err := DB.AutoMigrate(&models.Cashier{}, &models.Category{}, &models.Payment{}, &models.PaymentType{}, &models.Product{}, &models.Discount{}, &models.Order{}).Error; err != nil {
 	//	log.Fatalf("Migration failed %v", err)
 	//}
+
+}
+
+func ConnectPGX() {
+	godotenv.Load()
+
+	username := os.Getenv("POSTGRES_USER")
+	password := os.Getenv("POSTGRES_PASSWORD")
+	host := os.Getenv("POSTGRES_HOST")
+	port := os.Getenv("POSTGRES_PORT")
+	database := os.Getenv("POSTGRES_DB")
+
+	// dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local", username, password, host, port, database)
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Jakarta", host, username, password, database, port)
+
+	conn, err := pgx.Connect(context.Background(), dsn)
+	if err != nil {
+		log.Fatalf("Unable to connect to database: %v\n", err)
+	}
+	// defer conn.Close(context.Background())
+
+	DBPGX = conn
+
+	fmt.Println("db pgx connected successfully")
 
 }
 
