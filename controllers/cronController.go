@@ -365,7 +365,7 @@ func GenerateFlag(c *fiber.Ctx) error {
 
 func GetData(c *fiber.Ctx) error {
 
-	start := time.Now()
+	// start := time.Now()
 	type GetFlagRequest struct {
 		FlagID   string `json:"flagId"`
 		UserID   int    `json:"userId"`
@@ -381,7 +381,8 @@ func GetData(c *fiber.Ctx) error {
 		fmt.Println("Error marshaling JSON:", err)
 	}
 
-	urls := "https://rest.pt-bks.com/pluto-mobile/getData2?flagId=" + flagReq.FlagID
+	// urls := "https://rest.pt-bks.com/pluto-mobile/getData2?flagId=" + flagReq.FlagID + "&userId=" + flagReq.UserID + "&branchId=" + flagReq.BranchId
+	urls := fmt.Sprintf("https://rest.pt-bks.com/pluto-mobile/getData2?flagId=%s&userId=%d&branchId=%d", flagReq.FlagID, flagReq.UserID, flagReq.BranchId)
 
 	responseData, err := helpers.SendCurl(dataSend, "GET", urls)
 	if err != nil {
@@ -398,52 +399,61 @@ func GetData(c *fiber.Ctx) error {
 	// fmt.Println(responseData)
 	tempUserID := strconv.Itoa(flagReq.UserID)
 	tempBranchId := strconv.Itoa(flagReq.BranchId)
-	for key, val := range responseData["data"].(map[string]interface{}) {
-		r := strings.NewReplacer("userId", tempUserID, "branchId", tempBranchId)
-		tempString := r.Replace(val.(string))
-		queries = append(queries, tempString)
+	if responseData["data"] != nil {
+		for key, val := range responseData["data"].(map[string]interface{}) {
+			r := strings.NewReplacer("userId", tempUserID, "branchId", tempBranchId)
+			tempString := r.Replace(val.(string))
+			queries = append(queries, tempString)
 
-		keyQuery = append(keyQuery, key)
-	}
-
-	var wg sync.WaitGroup
-	resultsChan := make(chan map[string][]map[string]interface{}, len(queries))
-	// tempResults := make([][]map[string]interface{}, len(queries))
-	tempResults := make([]map[string]interface{}, 0, len(queries))
-
-	for i, query := range queries {
-		wg.Add(1)
-		// go executeGORMQuery(query, resultsChan, i, &wg)
-		go helpers.ExecuteGORMQueryIndexString(query, resultsChan, keyQuery[i], &wg)
-	}
-
-	// Wait for all Goroutines to finish
-	wg.Wait()
-	close(resultsChan)
-
-	for result := range resultsChan {
-		for key, res := range result {
-			tempResults = append(tempResults, map[string]interface{}{
-				key: res,
-			})
+			keyQuery = append(keyQuery, key)
 		}
-	}
-	finalResult := make(map[string]interface{})
-	for _, val := range tempResults {
-		for key, res := range val {
-			// fmt.Println(key) //nama table
-			// fmt.Println(res) //data each table
-			finalResult[key] = res
-		}
-	}
 
-	elapsed := time.Since(start)
-	fmt.Printf("Function took %s", elapsed)
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"data":    finalResult,
-		"keyData": keyQuery,
-		"elapsed": elapsed,
-	})
+		var wg sync.WaitGroup
+		resultsChan := make(chan map[string][]map[string]interface{}, len(queries))
+		// tempResults := make([][]map[string]interface{}, len(queries))
+		tempResults := make([]map[string]interface{}, 0, len(queries))
+
+		for i, query := range queries {
+			wg.Add(1)
+			// go executeGORMQuery(query, resultsChan, i, &wg)
+			go helpers.ExecuteGORMQueryIndexString(query, resultsChan, keyQuery[i], &wg)
+		}
+
+		// Wait for all Goroutines to finish
+		wg.Wait()
+		close(resultsChan)
+
+		for result := range resultsChan {
+			for key, res := range result {
+				tempResults = append(tempResults, map[string]interface{}{
+					key: res,
+				})
+			}
+		}
+		finalResult := make(map[string]interface{})
+		for _, val := range tempResults {
+			for key, res := range val {
+				// fmt.Println(key) //nama table
+				// fmt.Println(res) //data each table
+				finalResult[key] = res
+			}
+		}
+
+		// elapsed := time.Since(start)
+		// fmt.Printf("Function took %s", elapsed)
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"data":    finalResult,
+			"keyData": keyQuery,
+			// "elapsed": elapsed,
+		})
+	} else {
+		fmt.Println("not found data of " + flagReq.FlagID)
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"data":    nil,
+			"keyData": nil,
+			// "elapsed": elapsed,
+		})
+	}
 }
 
 func GetDataToday(c *fiber.Ctx) error {

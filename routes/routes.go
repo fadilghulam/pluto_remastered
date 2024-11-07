@@ -21,7 +21,7 @@ import (
 
 func Setup(app *fiber.App) {
 	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendString("Landing Page2!")
+		return c.SendString("Landing Page local pluto remastered!")
 	})
 
 	app.Post("login", controllers.Login)
@@ -41,6 +41,9 @@ func Setup(app *fiber.App) {
 	app.Get("/generateFlag", controllers.GenerateFlag)
 	app.Get("/getData", controllers.GetData)
 	app.Get("/getDataToday", controllers.GetDataToday)
+
+	app.Get("/getPermission", mobile.GetPermission)
+	app.Post("/setStock", mobile.SetStock)
 
 	app.Post("/insertTransactions", mobile.InsertTransactions)
 
@@ -68,6 +71,8 @@ func Setup(app *fiber.App) {
 	mobileRoute.Post("confirmOrder", mobile.ConfirmOrder)
 
 	mobileRoute.Get("getListPengajuan", mobile.GetDataRequests)
+
+	mobileRoute.Get("getCheckSO", mobile.GetCheckSO)
 
 	//sales
 	mobileRoute.Get("getStokProduk", mobile.GetStokProduk)

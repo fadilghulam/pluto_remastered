@@ -3,7 +3,9 @@ package controllers
 import (
 	"fmt"
 	"math"
+	db "pluto_remastered/config"
 	"pluto_remastered/helpers"
+	"pluto_remastered/structs"
 	"strconv"
 	"sync"
 
@@ -487,5 +489,246 @@ func GetDataRequests(c *fiber.Ctx) error {
 		Success:    true,
 		Data:       tempResults[1],
 		TotalPages: tempTotalPages,
+	})
+}
+
+func GetPermission(c *fiber.Ctx) error {
+
+	userIdstr := c.Query("userId")
+
+	userId, _ := strconv.Atoi(userIdstr)
+
+	datas, _ := getPermissions(int32(userId), c)
+
+	return c.Status(fiber.StatusOK).JSON(datas)
+}
+func SetStock(c *fiber.Ctx) error {
+
+	stokUser := new(structs.StokUser)
+
+	tx := db.DB.Begin()
+
+	if err := tx.Save(&stokUser).Error; err != nil {
+		tx.Rollback()
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan menyimpan data",
+			Success: false,
+		})
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan menyimpan data",
+			Success: false,
+		})
+	}
+
+	// datas, _ := getPermissions(933, c)
+	// branchIds := ""
+	// // fmt.Println(datas[0]["user_info2"].([]interface{}))
+
+	// // if helpers.ItemExists(datas[0]["module_ids"].([]interface{}), 3) == true {
+	// // 	fmt.Println("ada")
+	// // }
+	// if helpers.ItemExists(datas[0]["master_rule_ids"].([]interface{}), 1) == true {
+	// 	// fmt.Println("ada master rule")
+	// 	// fmt.Println(datas[0]["user_info"].([]interface{})[1])
+	// 	for i := 0; i < len(datas[0]["user_info2"].([]interface{})); i++ {
+	// 		if datas[0]["user_info2"].([]interface{})[i].(map[string]interface{})["id"].(float64) == 1 {
+	// 			branchIds = branchIds + strconv.Itoa(int(datas[0]["user_info2"].([]interface{})[i].(map[string]interface{})["value"].(float64))) + ","
+	// 		}
+	// 		if datas[0]["user_info2"].([]interface{})[i].(map[string]interface{})["id"].(float64) == 3 {
+	// 			fmt.Println(datas[0]["user_info2"].([]interface{})[i].(map[string]interface{})["value"])
+	// 			for j := 0; j < len(datas[0]["user_info2"].([]interface{})[i].(map[string]interface{})["value"].([]interface{})); j++ {
+	// 				branchIds = branchIds + strconv.Itoa(int(datas[0]["user_info2"].([]interface{})[i].(map[string]interface{})["value"].([]interface{})[j].(float64))) + ","
+	// 			}
+	// 		}
+	// 		// for key, value := range datas[0]["user_info2"].([]interface{})[i].(map[string]interface{}) {
+	// 		// 	if key == "id" && value == 1 {
+	// 		// 		fmt.Println(key, value)
+	// 		// 	}
+	// 		// }
+	// 	}
+	// }
+
+	// fmt.Println(branchIds)
+	return c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
+		Message: "Data stok telah berhasil dibuat",
+		Success: true,
+	})
+}
+
+func getPermissions(userId int32, c *fiber.Ctx) ([]map[string]interface{}, error) {
+
+	if userId == 0 {
+		userId = int32(helpers.ParseInt(c.Query("userId")))
+	}
+
+	templateQuery := ` WITH role_permission as (
+                            SELECT r.id as role_id,
+                                    r.name as role_name,
+                                    app.id as app_id,
+                                    app.name as app_name,
+                                    JSONB_BUILD_OBJECT(
+                                        'id', p.id,
+                                        'name', p.name,
+                                        'modules',
+                                            JSONB_AGG(
+                                                JSONB_BUILD_OBJECT(
+                                                        'module_id', m.id,
+                                                        'module_name', m.name
+                                                )
+                                            )
+                                    ) as permissions
+                        FROM rpm.user_role ur
+                        JOIN rpm.role r
+                            ON ur.role_id = r.id
+                        JOIN rpm.permission_role pr
+                            ON r.id = pr.role_id
+                        JOIN rpm.permission p
+                            ON pr.permission_id = p.id
+                        JOIN public.app
+                            ON p.app_id = app.id
+                        JOIN rpm.module m
+                            ON m.id = ANY(pr.module_ids)
+                        WHERE ur.user_id = {{.QUserId}} AND p.app_id = 16
+                        GROUP BY r.id, app.id, p.id
+                    ), subject_profiles as (
+					        SELECT r.id as role_id,
+									r.name as role_name, 
+									sp.name as subject_profile_name, 
+									st.name as subject_type_name,
+									JSONB_AGG(
+                                        JSONB_BUILD_OBJECT(
+                                            'id', mr.id,
+                                            'name', mr.name,
+                                            'value',  CASE WHEN spd.value IS NOT NULL 
+                                                        THEN rpm.jsonb_dyntype(spd.value, spd.type_data)
+                                                        ELSE 
+                                                            JSONB_BUILD_OBJECT(
+                                                                'min', rpm.jsonb_dyntype(spd.value_min, spd.type_data),
+                                                                'max', rpm.jsonb_dyntype(spd.value_max, spd.type_data)
+                                                            )
+                                                        END
+                                            )
+                                    ) as user_info
+                            FROM rpm.user_role ur
+                            JOIN rpm.role r
+                                ON ur.role_id = r.id
+                            JOIN rpm.subject_profile sp
+                                ON r.subject_profile = sp.name
+                            JOIN rpm.subject_type st
+                                ON sp.subject_type_id = st.id
+                            JOIN rpm.subject_profile_detail spd
+                                ON sp.id = spd.subject_profile_id
+                            JOIN rpm.master_rule mr
+                                ON spd.master_rule_id = mr.id
+                                AND mr.id = ANY(st.master_rule_ids)
+                            WHERE ur.user_id = {{.QUserId}}
+                            GROUP BY r.id, sp.id, st.id
+                    )
+
+                    SELECT ur.user_id, 
+                            ur.role_id, 
+                            r.name as role_name, 
+                            sp.subject_profile_name, 
+                            sp.subject_type_name,
+                            sp.user_info,
+                            rp.app_id,
+                            rp.app_name,
+                            JSONB_AGG(rp.permissions) as permissions
+                    FROM rpm.user_role ur
+                    JOIN rpm.role r
+                        ON ur.role_id = r.id
+                    LEFT JOIN subject_profiles sp
+                        ON r.id = sp.role_id
+                    LEFT JOIN role_permission rp
+                        ON r.id = rp.role_id
+                    WHERE ur.user_id  = {{.QUserId}} AND rp.app_id = 16
+                    GROUP BY ur.user_id, ur.role_id, r.id, sp.subject_profile_name, sp.subject_type_name, sp.user_info, rp.app_id, rp.app_name`
+
+	templateParamQuery := map[string]interface{}{
+		"QUserId": userId,
+	}
+
+	query1, err := helpers.PrepareQuery(templateQuery, templateParamQuery)
+
+	if err != nil {
+		fmt.Println(err)
+		return nil, c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika generate query",
+			Success: false,
+		})
+	}
+
+	datas, err := helpers.ExecuteQuery(query1)
+
+	if err != nil {
+		fmt.Println(err)
+		return nil, c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika mengambil data",
+			Success: false,
+		})
+	}
+
+	if len(datas) == 0 {
+		return nil, c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
+			Message: "Data tidak ditemukan",
+			Success: true,
+		})
+	}
+
+	return datas, c.Status(fiber.StatusOK).JSON(helpers.Response{
+		Message: "Data berhasil diambil",
+		Success: true,
+		Data:    datas,
+	})
+
+}
+
+func GetCheckSO(c *fiber.Ctx) error {
+
+	userId := c.Query("userId")
+
+	StokSalesman := structs.StokSalesman{}
+	StokMerchandiser := structs.StokMerchandiser{}
+
+	err := db.DB.
+		Where("user_id = ? AND is_complete = 0 AND DATE(tanggal_stok) <> CURRENT_DATE", userId).
+		Order("DATE(tanggal_stok) ASC").
+		First(&StokSalesman).Error
+	if err != nil && err.Error() != "record not found" {
+		fmt.Println(err.Error())
+	}
+
+	err = db.DB.
+		Where("user_id = ? AND is_complete = 0 AND DATE(tanggal_stok) <> CURRENT_DATE", userId).
+		Order("DATE(tanggal_stok) ASC").
+		First(&StokMerchandiser).Error
+	if err != nil && err.Error() != "record not found" {
+		fmt.Println(err.Error())
+	}
+
+	returnData := make(map[string]interface{}, 2)
+
+	if !StokSalesman.TanggalStok.IsZero() {
+		returnData["produk"] = StokSalesman.TanggalStok.Format("2006-01-02")
+	} else {
+		returnData["produk"] = nil
+	}
+
+	if !StokMerchandiser.TanggalStok.IsZero() {
+		returnData["item"] = StokMerchandiser.TanggalStok.Format("2006-01-02")
+	} else {
+		returnData["item"] = nil
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helpers.Response{
+		Message: "Data berhasil diambil",
+		Success: true,
+		Data:    returnData,
 	})
 }

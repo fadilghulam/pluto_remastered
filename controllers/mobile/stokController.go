@@ -105,6 +105,8 @@ func GetProdukByGudang(c *fiber.Ctx) error {
 		where = where + " AND condition = '" + *inputUser.Condition + "'"
 	}
 
+	// fmt.Println(where)
+
 	datas, err := helpers.NewExecuteQuery(fmt.Sprintf(`SELECT sg.id, 
 												JSONB_BUILD_OBJECT('id', sg.produk_id, 'name', p.name, 'code', p.code, 'photo', p.foto) as produk,
 												harga,
@@ -169,13 +171,19 @@ func GetItemByGudang(c *fiber.Ctx) error {
 	}
 
 	datas, err := helpers.NewExecuteQuery(fmt.Sprintf(`SELECT sg.id, 
-															sg.item_id as item_id,
-															i.name as item_name,
-															i.code as item_code,
-															i.category_id as category_id,
-															ic.name as category_name,
-															i.brand_id,
-															pb.name as brand_name,
+															JSONB_BUILD_OBJECT(
+																'id', sg.item_id, 
+																'name', i.name, 
+																'code', i.code
+															) as item,
+															JSONB_BUILD_OBJECT(
+																'id', i.category_id,
+																'name', ic.name
+															) as category,
+															JSONB_BUILD_OBJECT(
+																'id', i.brand_id,
+																'name', pb.name
+															) as brand,
 															harga,
 															jumlah,
 															batch,
@@ -219,7 +227,7 @@ func ConfirmOrder(c *fiber.Ctx) error {
 	if err != nil {
 		fmt.Println(err.Error())
 		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
-			Message: "Gagal mendapatkan input data",
+			Message: "Something's wrong with your input",
 			Success: false,
 		})
 	}
@@ -302,6 +310,7 @@ func ConfirmOrder(c *fiber.Ctx) error {
 		Message: "Order barhasil dikonfirmasi",
 		Success: true,
 	})
+
 }
 
 func GetStokProduk(c *fiber.Ctx) error {
@@ -324,6 +333,8 @@ func GetStokProduk(c *fiber.Ctx) error {
 
 	if inputUser.Date != nil {
 		where = " AND DATE(ss2.tanggal_stok) <= DATE('" + *inputUser.Date + "')"
+	} else {
+		where = " AND DATE(ss2.tanggal_stok) = CURRENT_DATE"
 	}
 
 	dataMax, err := helpers.ExecuteQuery(
@@ -345,9 +356,10 @@ func GetStokProduk(c *fiber.Ctx) error {
 	}
 
 	if len(dataMax) == 0 {
-		return c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
+		return c.Status(fiber.StatusOK).JSON(helpers.Response{
 			Message: "Data stok tidak ditemukan",
 			Success: false,
+			Data:    make([]interface{}, 0),
 		})
 	}
 
@@ -360,7 +372,23 @@ func GetStokProduk(c *fiber.Ctx) error {
                     WHERE TRUE AND ssr.is_validate = 1 AND ssr.user_id = {{.QDataMaxUserId}} 
                     AND DATE(ssr.tanggal_riwayat) = DATE('{{.QDataMaxTanggal}}')
                     GROUP BY ssr.user_id, ssr.produk_id, ssr.condition, ssr.pita
-                )
+                ), penjualans AS
+				(
+					SELECT p.user_id, pd.produk_id, pd.condition, pd.pita, SUM(pd.jumlah) as jumlah
+					FROM penjualan p
+					JOIN penjualan_detail pd
+					ON p.id = pd.penjualan_id
+					WHERE p.user_id = {{.QDataMaxUserId}} AND DATE(p.tanggal_penjualan) = DATE('{{.QDataMaxTanggal}}')
+					GROUP BY p.user_id, pd.produk_id, pd.condition, pd.pita
+				), pengembalians AS
+				(
+					SELECT p.user_id, pd.produk_id, pd.condition, pd.pita, SUM(pd.jumlah) as jumlah
+					FROM pengembalian p
+					JOIN pengembalian_detail pd
+					ON p.id = pd.pengembalian_id
+					WHERE p.user_id = {{.QDataMaxUserId}} AND DATE(p.tanggal_pengembalian) = DATE('{{.QDataMaxTanggal}}')
+					GROUP BY p.user_id, pd.produk_id, pd.condition, pd.pita
+				)
 
                     SELECT  ss.id, 
                             ss.stok_gudang_id, 
@@ -377,7 +405,9 @@ func GetStokProduk(c *fiber.Ctx) error {
                             ss.pita, 
                             (ss.stok_awal - SUM(COALESCE(ssr.order,0))) as stok_awal, 
                             SUM(COALESCE(ssr.order,0)) orders, 
-                            SUM(COALESCE(ssr.order,0)) as returs, 
+                            SUM(COALESCE(ssr.order,0)) as returs,
+							SUM(COALESCE(pj.jumlah,0)) as penjualan,
+							SUM(COALESCE(pg.jumlah,0)) as pengembalian,
                             ss.stok_akhir 
                     FROM
                     PUBLIC.stok_salesman ss
@@ -386,6 +416,16 @@ func GetStokProduk(c *fiber.Ctx) error {
                         AND ss.produk_id = ssr.produk_id
                         AND ss.condition = ssr.condition
                         AND ss.pita = ssr.pita
+					LEFT JOIN penjualans pj
+						ON ss.user_id = pj.user_id
+						AND ss.produk_id = pj.produk_id
+                        AND ss.condition = pj.condition
+                        AND ss.pita = pj.pita
+					LEFT JOIN pengembalians pg
+						ON ss.user_id = pg.user_id
+						AND ss.produk_id = pg.produk_id
+                        AND ss.condition = pg.condition
+                        AND ss.pita = pg.pita
                     WHERE ss.condition = ('GOOD') AND ss.user_id = {{.QDataMaxUserId}} AND DATE(ss.tanggal_stok) = DATE('{{.QDataMaxTanggal}}')
                     GROUP BY ss.id`
 
@@ -448,6 +488,8 @@ func GetStokItem(c *fiber.Ctx) error {
 
 	if inputUser.Date != nil {
 		where = " AND DATE(ss2.tanggal_stok) <= DATE('" + *inputUser.Date + "')"
+	} else {
+		where = " AND DATE(ss2.tanggal_stok) = CURRENT_DATE"
 	}
 
 	dataMax, err := helpers.ExecuteQuery(
@@ -469,9 +511,10 @@ func GetStokItem(c *fiber.Ctx) error {
 	}
 
 	if len(dataMax) == 0 {
-		return c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
+		return c.Status(fiber.StatusOK).JSON(helpers.Response{
 			Message: "Data stok tidak ditemukan",
 			Success: false,
+			Data:    make([]interface{}, 0),
 		})
 	}
 
@@ -485,7 +528,14 @@ func GetStokItem(c *fiber.Ctx) error {
                     WHERE TRUE AND ssr.is_validate = 1 AND ssr.user_id = {{.QDataMaxUserId}} 
                     AND DATE(ssr.tanggal_riwayat) = DATE('{{.QDataMaxTanggal}}')
                     GROUP BY ssr.user_id, ssr.item_id
-                )
+                ), transactions as (
+					SELECT tr.user_id, trd.item_id, SUM(trd.qty) as jumlah
+					FROM md.transaction tr
+					JOIN md.transaction_detail trd
+					ON tr.id = trd.transaction_id
+					WHERE tr.user_id = {{.QDataMaxUserId}} AND DATE(tr.datetime) = DATE('{{.QDataMaxTanggal}}')
+                    GROUP BY tr.user_id, trd.item_id
+				)
 
                     SELECT  ss.id, 
                             ss.stok_gudang_id, 
@@ -501,12 +551,17 @@ func GetStokItem(c *fiber.Ctx) error {
                             (ss.stok_awal - SUM(COALESCE(ssr.order,0))) as stok_awal, 
                             SUM(COALESCE(ssr.order,0)) orders, 
                             SUM(COALESCE(ssr.order,0)) as returs, 
+							SUM(COALESCE(tr.jumlah,0)) as penjualan,
+							0 as pengembalian,
                             ss.stok_akhir 
                     FROM
                     md.stok_merchandiser ss
                     LEFT JOIN ssr
                         ON ss.user_id = ssr.user_id
                         AND ss.item_id = ssr.item_id
+					LEFT JOIN transactions tr
+						ON ss.user_id = tr.user_id
+						AND ss.item_id = tr.item_id
                     WHERE ss.user_id = {{.QDataMaxUserId}} AND DATE(ss.tanggal_stok) = DATE('{{.QDataMaxTanggal}}')
                     GROUP BY ss.id`
 

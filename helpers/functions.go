@@ -979,3 +979,19 @@ func RemoveZeroFromMap(data map[string]interface{}) (map[string]interface{}, []s
 
 	return data, remainingKeys, removedKeys
 }
+
+func ItemExists(slice []interface{}, value int) bool {
+	for _, v := range slice {
+		switch v := v.(type) {
+		case int:
+			if v == value {
+				return true
+			}
+		case float64:
+			if int(v) == value { // Cast float64 to int for comparison
+				return true
+			}
+		}
+	}
+	return false
+}
