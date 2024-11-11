@@ -3,11 +3,13 @@ package controllers
 import (
 	"fmt"
 	"math"
+	"net/http"
 	db "pluto_remastered/config"
 	"pluto_remastered/helpers"
 	"pluto_remastered/structs"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -506,16 +508,273 @@ func SetStock(c *fiber.Ctx) error {
 
 	stokUser := new(structs.StokUser)
 
-	tx := db.DB.Begin()
-
-	if err := tx.Save(&stokUser).Error; err != nil {
-		tx.Rollback()
+	if err := c.BodyParser(stokUser); err != nil {
 		fmt.Println(err.Error())
-		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
-			Message: "Terjadi kesalahan menyimpan data",
+		return c.Status(fiber.StatusBadRequest).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mengambil input data",
 			Success: false,
 		})
 	}
+
+	tx := db.DB.Begin()
+
+	qWhere := ""
+	if stokUser.UserIdSubtitute != 0 {
+		qWhere = " AND user_id_subtitute = " + strconv.Itoa(int(stokUser.UserIdSubtitute))
+	} else {
+		qWhere = " AND user_id_subtitute = 0"
+	}
+
+	if stokUser.TanggalStok.IsZero() {
+		stokUser.TanggalStok = time.Now()
+	}
+
+	if err := tx.Where("DATE(tanggal_stok) = DATE(?) AND user_id = ? "+qWhere, stokUser.TanggalStok, stokUser.UserId).First(&stokUser).Error; err != nil && err.Error() != "record not found" {
+		tx.Rollback()
+		fmt.Println(err.Error())
+		return c.Status(http.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan data stok",
+			Success: false,
+		})
+	}
+
+	templateParamQuery := map[string]interface{}{
+		"QUserId":         stokUser.UserId,
+		"QInsert":         ", user_id_subtitute",
+		"QSelect":         ", " + strconv.Itoa(int(stokUser.UserIdSubtitute)) + " as user_id_subtitute",
+		"QInsertParentID": ", stok_user_id",
+		"QSelectParentID": ", " + strconv.Itoa(int(stokUser.ID)) + " as stok_user_id",
+	}
+
+	qStokSalesman := `SELECT ss.*  FROM
+                        PUBLIC.stok_salesman ss
+                        JOIN ( SELECT MAX ( ss2.tanggal_stok ) AS tgl, ss2.user_id 
+                                FROM PUBLIC.stok_salesman ss2 
+                                WHERE ss2.user_id IN ({{.QUserId}}) 
+                                AND DATE(ss2.tanggal_stok) <= CURRENT_DATE 
+                                GROUP BY ss2.user_id 
+                            ) s 
+                            ON s.tgl = ss.tanggal_stok AND s.user_id = ss.user_id
+                        AND s.user_id = ss.user_id 
+                        WHERE ss.condition = ('GOOD')`
+
+	getStokSalesman, err := helpers.PrepareQuery(qStokSalesman, templateParamQuery)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika generate query",
+			Success: false,
+		})
+	}
+
+	dataStokSalesman, err := helpers.ExecuteQuery(getStokSalesman)
+
+	if err != nil && err.Error() != "record not found" {
+		tx.Rollback()
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika generate query",
+			Success: false,
+		})
+	}
+
+	qStokMerchandiser := `SELECT ss.*  FROM
+                            md.stok_merchandiser ss
+                            JOIN ( SELECT MAX ( ss2.tanggal_stok ) AS tgl, ss2.user_id 
+                                    FROM md.stok_merchandiser ss2 
+                                    WHERE ss2.user_id IN ({{.QUserId}}) 
+                                    AND DATE(ss2.tanggal_stok) <= CURRENT_DATE 
+                                    GROUP BY ss2.user_id 
+                                ) s 
+                                ON s.tgl = ss.tanggal_stok AND s.user_id = ss.user_id
+                            AND s.user_id = ss.user_id`
+
+	getStokMerchandiser, err := helpers.PrepareQuery(qStokMerchandiser, templateParamQuery)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika generate query",
+			Success: false,
+		})
+	}
+
+	dataStokMerchandiser, err := helpers.ExecuteQuery(getStokMerchandiser)
+
+	if err != nil && err.Error() != "record not found" {
+		tx.Rollback()
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika generate query",
+			Success: false,
+		})
+	}
+
+	if stokUser.ID != 0 {
+		tx.Rollback()
+		returnExistStok := make(map[string]interface{})
+		returnExistStok["stok_user"] = stokUser
+		returnExistStok["stok_salesman"] = dataStokSalesman
+		returnExistStok["stok_merchandiser"] = dataStokMerchandiser
+		return c.Status(http.StatusOK).JSON(helpers.Response{
+			Message: "Data sudah ada",
+			Success: true,
+			Data:    returnExistStok,
+		})
+	}
+
+	if err := tx.Create(&stokUser).Error; err != nil {
+		tx.Rollback()
+		fmt.Println(err.Error())
+		return c.Status(http.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal menyimpan data",
+			Success: false,
+		})
+	}
+
+	templateQuery := `INSERT INTO stok_salesman (stok_gudang_id, user_id, produk_id, stok_awal, stok_akhir, tanggal_stok, confirm_key, is_complete, tanggal_so, so_admin_gudang_id, condition, pita {{.QInsert}} {{.QInsertParentID}})
+
+                        SELECT 0 as stok_gudang_id, 
+                                sq.user_id, 
+                                sq.produk_id, 
+                                SUM(sq.stok_awal) as stok_awal, 
+                                SUM(sq.stok_akhir) as stok_akhir, 
+                                NOW() as tanggal_stok,
+                                NULL as confirm_key, 
+                                0 as is_complete, 
+                                NULL as tanggal_so, 
+                                NULL as so_admin_gudang_id, 
+                                condition, 
+                                pita
+                                {{.QSelect}}
+                                {{.QSelectParentID}}
+                        FROM (
+                                SELECT user_id, produk_id, COALESCE(lss.stok_akhir,0) as stok_awal, COALESCE(lss.stok_akhir,0) as stok_akhir, condition, pita
+                                FROM (
+                                        SELECT DISTINCT ON (user_id, produk_id, condition, pita) 
+                                                    id, 
+                                                    user_id, 
+                                                    produk_id, 
+                                                    condition, 
+                                                    pita, 
+                                                    stok_awal, 
+                                                    stok_akhir, 
+                                                    confirm_key, 
+                                                    is_complete, 
+                                                    tanggal_so,
+                                                    so_admin_gudang_id
+                                        FROM stok_salesman 
+                                        WHERE user_id = {{.QUserId}} AND DATE(tanggal_stok) < CURRENT_DATE 
+                                        ORDER BY user_id, produk_id, condition, pita, tanggal_stok DESC
+                                ) lss
+                                WHERE stok_akhir <> 0
+                        ) sq
+                        GROUP BY sq.user_id, sq.produk_id, sq.condition, sq.pita
+                        ORDER BY sq.produk_id, sq.condition, sq.pita`
+
+	templateQueryMD := `INSERT INTO md.stok_merchandiser (stok_gudang_id, user_id, item_id, stok_awal, stok_akhir, tanggal_stok, confirm_key, is_complete, tanggal_so, so_admin_gudang_id {{.QInsert}} {{.QInsertParentID}})
+
+                        SELECT 0 as stok_gudang_id, 
+                                sq.user_id, 
+                                sq.item_id, 
+                                SUM(sq.stok_awal) as stok_awal, 
+                                SUM(sq.stok_akhir) as stok_akhir, 
+                                NOW() as tanggal_stok,
+                                NULL as confirm_key, 
+                                0 as is_complete, 
+                                NULL as tanggal_so, 
+                                NULL as so_admin_gudang_id
+                                {{.QSelect}}
+                                {{.QSelectParentID}}
+                        FROM (
+                                SELECT user_id, item_id, COALESCE(lss.stok_akhir,0) as stok_awal, COALESCE(lss.stok_akhir,0) as stok_akhir, condition, pita
+                                FROM (
+                                    SELECT DISTINCT ON (user_id, item_id) 
+                                        id, 
+                                        user_id, 
+                                        item_id, 
+                                        stok_awal, 
+                                        stok_akhir, 
+                                        confirm_key, 
+                                        is_complete, 
+                                        tanggal_so,
+                                        so_admin_gudang_id
+                                    FROM md.stok_merchandiser 
+                                    WHERE user_id = {{.QUserId}} AND DATE(tanggal_stok) < CURRENT_DATE 
+                                    ORDER BY user_id, item_id, tanggal_stok DESC
+                                ) lss
+                                WHERE stok_akhir <> 0
+                        ) sq
+                        GROUP BY sq.user_id, sq.item_id
+                        ORDER BY sq.item_id`
+
+	templateParamQuery = map[string]interface{}{
+		"QUserId":         stokUser.UserId,
+		"QInsert":         ", user_id_subtitute",
+		"QSelect":         ", " + strconv.Itoa(int(stokUser.UserIdSubtitute)) + " as user_id_subtitute",
+		"QInsertParentID": ", stok_user_id",
+		"QSelectParentID": ", " + strconv.Itoa(int(stokUser.ID)) + " as stok_user_id",
+	}
+
+	query1, err := helpers.PrepareQuery(templateQuery, templateParamQuery)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika generate query",
+			Success: false,
+		})
+	}
+
+	if err := tx.Exec(query1).Error; err != nil {
+		tx.Rollback()
+		fmt.Println(err.Error())
+		return c.Status(http.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal menyimpan data",
+			Success: false,
+		})
+	}
+	// fmt.Println(query1)
+
+	query2, err := helpers.PrepareQuery(templateQueryMD, templateParamQuery)
+
+	if err := tx.Exec(query2).Error; err != nil {
+		tx.Rollback()
+		fmt.Println(err.Error())
+		return c.Status(http.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal menyimpan data",
+			Success: false,
+		})
+	}
+	// fmt.Println(query2)
+
+	dataStokSalesman, err = helpers.ExecuteQuery(getStokSalesman)
+
+	if err != nil && err.Error() != "record not found" {
+		tx.Rollback()
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika generate query",
+			Success: false,
+		})
+	}
+
+	dataStokMerchandiser, err = helpers.ExecuteQuery(getStokMerchandiser)
+
+	if err != nil && err.Error() != "record not found" {
+		tx.Rollback()
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika generate query",
+			Success: false,
+		})
+	}
+
+	returnExistStok := make(map[string]interface{})
+	returnExistStok["stok_user"] = stokUser
+	returnExistStok["stok_salesman"] = dataStokSalesman
+	returnExistStok["stok_merchandiser"] = dataStokMerchandiser
 
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
@@ -526,38 +785,10 @@ func SetStock(c *fiber.Ctx) error {
 		})
 	}
 
-	// datas, _ := getPermissions(933, c)
-	// branchIds := ""
-	// // fmt.Println(datas[0]["user_info2"].([]interface{}))
-
-	// // if helpers.ItemExists(datas[0]["module_ids"].([]interface{}), 3) == true {
-	// // 	fmt.Println("ada")
-	// // }
-	// if helpers.ItemExists(datas[0]["master_rule_ids"].([]interface{}), 1) == true {
-	// 	// fmt.Println("ada master rule")
-	// 	// fmt.Println(datas[0]["user_info"].([]interface{})[1])
-	// 	for i := 0; i < len(datas[0]["user_info2"].([]interface{})); i++ {
-	// 		if datas[0]["user_info2"].([]interface{})[i].(map[string]interface{})["id"].(float64) == 1 {
-	// 			branchIds = branchIds + strconv.Itoa(int(datas[0]["user_info2"].([]interface{})[i].(map[string]interface{})["value"].(float64))) + ","
-	// 		}
-	// 		if datas[0]["user_info2"].([]interface{})[i].(map[string]interface{})["id"].(float64) == 3 {
-	// 			fmt.Println(datas[0]["user_info2"].([]interface{})[i].(map[string]interface{})["value"])
-	// 			for j := 0; j < len(datas[0]["user_info2"].([]interface{})[i].(map[string]interface{})["value"].([]interface{})); j++ {
-	// 				branchIds = branchIds + strconv.Itoa(int(datas[0]["user_info2"].([]interface{})[i].(map[string]interface{})["value"].([]interface{})[j].(float64))) + ","
-	// 			}
-	// 		}
-	// 		// for key, value := range datas[0]["user_info2"].([]interface{})[i].(map[string]interface{}) {
-	// 		// 	if key == "id" && value == 1 {
-	// 		// 		fmt.Println(key, value)
-	// 		// 	}
-	// 		// }
-	// 	}
-	// }
-
-	// fmt.Println(branchIds)
-	return c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
+	return c.Status(fiber.StatusOK).JSON(helpers.Response{
 		Message: "Data stok telah berhasil dibuat",
 		Success: true,
+		Data:    returnExistStok,
 	})
 }
 
@@ -568,34 +799,43 @@ func getPermissions(userId int32, c *fiber.Ctx) ([]map[string]interface{}, error
 	}
 
 	templateQuery := ` WITH role_permission as (
-                            SELECT r.id as role_id,
-                                    r.name as role_name,
-                                    app.id as app_id,
-                                    app.name as app_name,
-                                    JSONB_BUILD_OBJECT(
-                                        'id', p.id,
-                                        'name', p.name,
-                                        'modules',
-                                            JSONB_AGG(
-                                                JSONB_BUILD_OBJECT(
-                                                        'module_id', m.id,
-                                                        'module_name', m.name
-                                                )
-                                            )
-                                    ) as permissions
-                        FROM rpm.user_role ur
-                        JOIN rpm.role r
-                            ON ur.role_id = r.id
-                        JOIN rpm.permission_role pr
-                            ON r.id = pr.role_id
-                        JOIN rpm.permission p
-                            ON pr.permission_id = p.id
-                        JOIN public.app
-                            ON p.app_id = app.id
-                        JOIN rpm.module m
-                            ON m.id = ANY(pr.module_ids)
-                        WHERE ur.user_id = {{.QUserId}} AND p.app_id = 16
-                        GROUP BY r.id, app.id, p.id
+                            SELECT sq.role_id,
+                                    sq.role_name,
+                                    sq.app_id, 
+                                    sq.app_name,
+                                    JSONB_AGG(sq.permissions ORDER BY sq.permission_id) as permissions
+                            FROM (
+                                    SELECT r.id as role_id,
+                                            r.name as role_name,
+                                            app.id as app_id,
+                                            app.name as app_name,
+                                            p.id as permission_id,
+                                            JSONB_BUILD_OBJECT(
+                                                'id', p.id,
+                                                'name', p.name,
+                                                'modules',
+                                                    JSONB_AGG(
+                                                        JSONB_BUILD_OBJECT(
+                                                                'module_id', m.id,
+                                                                'module_name', m.name
+                                                        )
+                                                    )
+                                            ) as permissions
+                                    FROM rpm.user_role ur
+                                    JOIN rpm.role r
+                                        ON ur.role_id = r.id
+                                    JOIN rpm.permission_role pr
+                                        ON r.id = pr.role_id
+                                    JOIN rpm.permission p
+                                        ON pr.permission_id = p.id
+                                    JOIN public.app
+                                        ON p.app_id = app.id
+                                    JOIN rpm.module m
+                                        ON m.id = ANY(pr.module_ids)
+                                    WHERE ur.user_id = {{.QUserId}} AND p.app_id = 16
+                                    GROUP BY r.id, app.id, p.id
+                            ) sq
+	                        GROUP BY sq.role_id, sq.role_name, sq.app_id, sq.app_name
                     ), subject_profiles as (
 					        SELECT r.id as role_id,
 									r.name as role_name, 
@@ -613,8 +853,8 @@ func getPermissions(userId int32, c *fiber.Ctx) ([]map[string]interface{}, error
                                                                 'max', rpm.jsonb_dyntype(spd.value_max, spd.type_data)
                                                             )
                                                         END
-                                            )
-                                    ) as user_info
+                                            ) ORDER BY mr.id
+                                    ) as master_info
                             FROM rpm.user_role ur
                             JOIN rpm.role r
                                 ON ur.role_id = r.id
@@ -631,15 +871,19 @@ func getPermissions(userId int32, c *fiber.Ctx) ([]map[string]interface{}, error
                             GROUP BY r.id, sp.id, st.id
                     )
 
-                    SELECT ur.user_id, 
-                            ur.role_id, 
-                            r.name as role_name, 
-                            sp.subject_profile_name, 
-                            sp.subject_type_name,
-                            sp.user_info,
+                    SELECT ur.user_id,
                             rp.app_id,
                             rp.app_name,
-                            JSONB_AGG(rp.permissions) as permissions
+                            JSONB_AGG(
+                                JSONB_BUILD_OBJECT(
+                                    'role_name', r.name,
+                                    'role_id', ur.role_id,
+                                    'subject_profile_name', sp.subject_profile_name,
+                                    'subject_type_name', sp.subject_type_name,
+                                    'permission', rp.permissions,
+                                    'master_info', sp.master_info
+                                ) ORDER BY ur.role_id
+                            ) as user_info
                     FROM rpm.user_role ur
                     JOIN rpm.role r
                         ON ur.role_id = r.id
@@ -648,7 +892,7 @@ func getPermissions(userId int32, c *fiber.Ctx) ([]map[string]interface{}, error
                     LEFT JOIN role_permission rp
                         ON r.id = rp.role_id
                     WHERE ur.user_id  = {{.QUserId}} AND rp.app_id = 16
-                    GROUP BY ur.user_id, ur.role_id, r.id, sp.subject_profile_name, sp.subject_type_name, sp.user_info, rp.app_id, rp.app_name`
+                    GROUP BY ur.user_id, rp.app_id, rp.app_name`
 
 	templateParamQuery := map[string]interface{}{
 		"QUserId": userId,
@@ -693,38 +937,54 @@ func GetCheckSO(c *fiber.Ctx) error {
 
 	userId := c.Query("userId")
 
-	StokSalesman := structs.StokSalesman{}
-	StokMerchandiser := structs.StokMerchandiser{}
+	// StokSalesman := structs.StokSalesman{}
+	// StokMerchandiser := structs.StokMerchandiser{}
+	StokUser := structs.StokUser{}
 
 	err := db.DB.
-		Where("user_id = ? AND is_complete = 0 AND DATE(tanggal_stok) <> CURRENT_DATE", userId).
+		Where("user_id = ? AND is_complete = 0", userId).
 		Order("DATE(tanggal_stok) ASC").
-		First(&StokSalesman).Error
+		First(&StokUser).Error
 	if err != nil && err.Error() != "record not found" {
 		fmt.Println(err.Error())
 	}
 
-	err = db.DB.
-		Where("user_id = ? AND is_complete = 0 AND DATE(tanggal_stok) <> CURRENT_DATE", userId).
-		Order("DATE(tanggal_stok) ASC").
-		First(&StokMerchandiser).Error
-	if err != nil && err.Error() != "record not found" {
-		fmt.Println(err.Error())
-	}
+	// err := db.DB.
+	// 	Where("user_id = ? AND is_complete = 0 AND DATE(tanggal_stok) <> CURRENT_DATE", userId).
+	// 	Order("DATE(tanggal_stok) ASC").
+	// 	First(&StokSalesman).Error
+	// if err != nil && err.Error() != "record not found" {
+	// 	fmt.Println(err.Error())
+	// }
 
-	returnData := make(map[string]interface{}, 2)
+	// err = db.DB.
+	// 	Where("user_id = ? AND is_complete = 0 AND DATE(tanggal_stok) <> CURRENT_DATE", userId).
+	// 	Order("DATE(tanggal_stok) ASC").
+	// 	First(&StokMerchandiser).Error
+	// if err != nil && err.Error() != "record not found" {
+	// 	fmt.Println(err.Error())
+	// }
 
-	if !StokSalesman.TanggalStok.IsZero() {
-		returnData["produk"] = StokSalesman.TanggalStok.Format("2006-01-02")
+	returnData := make(map[string]interface{})
+	// var returnData map[string]interface{}
+
+	if !StokUser.TanggalStok.IsZero() {
+		returnData["pending_so"] = StokUser.TanggalStok.Format("2006-01-02")
 	} else {
-		returnData["produk"] = nil
+		returnData["pending_so"] = nil
 	}
 
-	if !StokMerchandiser.TanggalStok.IsZero() {
-		returnData["item"] = StokMerchandiser.TanggalStok.Format("2006-01-02")
-	} else {
-		returnData["item"] = nil
-	}
+	// if !StokSalesman.TanggalStok.IsZero() {
+	// 	returnData["produk"] = StokSalesman.TanggalStok.Format("2006-01-02")
+	// } else {
+	// 	returnData["produk"] = nil
+	// }
+
+	// if !StokMerchandiser.TanggalStok.IsZero() {
+	// 	returnData["item"] = StokMerchandiser.TanggalStok.Format("2006-01-02")
+	// } else {
+	// 	returnData["item"] = nil
+	// }
 
 	return c.Status(fiber.StatusOK).JSON(helpers.Response{
 		Message: "Data berhasil diambil",

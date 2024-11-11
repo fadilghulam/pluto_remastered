@@ -3,10 +3,12 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	db "pluto_remastered/config"
 	"pluto_remastered/helpers"
 	"pluto_remastered/structs"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -178,4 +180,55 @@ func InsertTransactions(c *fiber.Ctx) error {
 		"message": "success",
 		"data":    result,
 	})
+}
+
+func CompleteSales(c *fiber.Ctx) error {
+
+	// start := time.Now()
+	type inputData struct {
+		UserID     int32  `json:"userId"`
+		Date       string `json:"date"`
+		ConfirmKey string `json:"confirmKey"`
+	}
+	var userInput inputData
+	if err := c.QueryParser(&userInput); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request payload"})
+	}
+
+	dataSend := "?userId=" + strconv.Itoa(int(userInput.UserID)) + "&date=" + userInput.Date
+
+	// fmt.Println("https://rest.pt-bks.com/pluto-mobile/completeSalesQuery" + dataSend)
+
+	responseData, err := helpers.SendCurl(nil, "GET", "https://rest.pt-bks.com/pluto-mobile/completeSalesQuery"+dataSend)
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Something went wrong",
+			Success: false,
+		})
+	}
+
+	if responseData["success"] == false {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": responseData["message"],
+			"success": responseData["success"],
+		})
+	}
+
+	resultData, err := helpers.ExecuteQuery(responseData["data"].(string))
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Something went wrong",
+			Success: false,
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": responseData["message"],
+		"success": responseData["success"],
+		"data":    resultData,
+	})
+
+	// return nil
 }

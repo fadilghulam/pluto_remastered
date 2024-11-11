@@ -958,6 +958,8 @@ func SendCurl(data []byte, method string, url string) (map[string]interface{}, e
 		if len(responseData["data"].([]interface{})) == 0 {
 			responseData["data"] = nil
 		}
+	case string:
+		responseData["data"] = responseData["data"].(string)
 	default:
 		responseData["data"] = nil
 
