@@ -11,7 +11,7 @@ type StokUser struct {
 	ID              int64     `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
 	UserId          int32     `gorm:"column:user_id" json:"userId"`
 	UserIdSubtitute int32     `gorm:"column:user_id_subtitute; default: 0" json:"userIdSubtitute"`
-	TanggalStok     time.Time `gorm:"column:tanggal_stok" json:"tanggalStok"`
+	TanggalStok     string    `gorm:"column:tanggal_stok" json:"tanggalStok"`
 	IsComplete      int16     `gorm:"column:is_complete;default: 0" json:"is_complete"`
 	TanggalSo       time.Time `gorm:"column:tanggal_so;default: null" json:"tanggal_so"`
 	SoAdminGudangId int16     `gorm:"column:so_admin_gudang_id;default: null" json:"so_admin_gudang_id"`

@@ -504,11 +504,22 @@ func GetPermission(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(datas)
 }
+
 func SetStock(c *fiber.Ctx) error {
 
 	stokUser := new(structs.StokUser)
+	gudang := new(structs.Gudang)
 
 	if err := c.BodyParser(stokUser); err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusBadRequest).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mengambil input data",
+			Success: false,
+		})
+	}
+
+	var data map[string]interface{}
+	if err := c.BodyParser(&data); err != nil {
 		fmt.Println(err.Error())
 		return c.Status(fiber.StatusBadRequest).JSON(helpers.ResponseWithoutData{
 			Message: "Gagal mengambil input data",
@@ -525,11 +536,22 @@ func SetStock(c *fiber.Ctx) error {
 		qWhere = " AND user_id_subtitute = 0"
 	}
 
-	if stokUser.TanggalStok.IsZero() {
-		stokUser.TanggalStok = time.Now()
+	if stokUser.TanggalStok == "" {
+		stokUser.TanggalStok = fmt.Sprintf("%s", time.Now().Format("2006-01-02"))
 	}
 
-	if err := tx.Where("DATE(tanggal_stok) = DATE(?) AND user_id = ? "+qWhere, stokUser.TanggalStok, stokUser.UserId).First(&stokUser).Error; err != nil && err.Error() != "record not found" {
+	if err := tx.Where("branch_id = ? ", data["branchId"]).First(&gudang).Error; err != nil && err.Error() != "record not found" {
+		tx.Rollback()
+		fmt.Println(err.Error())
+		return c.Status(http.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan data gudang",
+			Success: false,
+		})
+	}
+
+	stokUser.GudangId = gudang.ID
+
+	if err := tx.Where("DATE(tanggal_stok) = DATE(?) AND user_id = ? AND gudang_id = ? "+qWhere, stokUser.TanggalStok, stokUser.UserId, gudang.ID).First(&stokUser).Error; err != nil && err.Error() != "record not found" {
 		tx.Rollback()
 		fmt.Println(err.Error())
 		return c.Status(http.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
@@ -546,84 +568,34 @@ func SetStock(c *fiber.Ctx) error {
 		"QSelectParentID": ", " + strconv.Itoa(int(stokUser.ID)) + " as stok_user_id",
 	}
 
-	qStokSalesman := `SELECT ss.*  FROM
-                        PUBLIC.stok_salesman ss
-                        JOIN ( SELECT MAX ( ss2.tanggal_stok ) AS tgl, ss2.user_id 
-                                FROM PUBLIC.stok_salesman ss2 
-                                WHERE ss2.user_id IN ({{.QUserId}}) 
-                                AND DATE(ss2.tanggal_stok) <= CURRENT_DATE 
-                                GROUP BY ss2.user_id 
-                            ) s 
-                            ON s.tgl = ss.tanggal_stok AND s.user_id = ss.user_id
-                        AND s.user_id = ss.user_id 
-                        WHERE ss.condition = ('GOOD')`
+	sUserID := strconv.Itoa(int(stokUser.UserId))
+	sGudangID := strconv.Itoa(int(gudang.ID))
+	var sUserIDSubtitute string
+	if &stokUser.UserIdSubtitute != nil {
+		sUserIDSubtitute = strconv.Itoa(int(stokUser.UserIdSubtitute))
+	} else {
+		sUserIDSubtitute = ""
+	}
 
-	getStokSalesman, err := helpers.PrepareQuery(qStokSalesman, templateParamQuery)
+	tanggalStokStr := fmt.Sprintf("%s", stokUser.TanggalStok)
+	datas, err := getStokParent(&sUserID, &tanggalStokStr, &sUserIDSubtitute, &sGudangID, c)
 
 	if err != nil {
-		fmt.Println(err.Error())
-		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
-			Message: "Terjadi kesalahan ketika generate query",
-			Success: false,
-		})
-	}
-
-	dataStokSalesman, err := helpers.ExecuteQuery(getStokSalesman)
-
-	if err != nil && err.Error() != "record not found" {
 		tx.Rollback()
 		fmt.Println(err.Error())
-		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
-			Message: "Terjadi kesalahan ketika generate query",
-			Success: false,
-		})
-	}
-
-	qStokMerchandiser := `SELECT ss.*  FROM
-                            md.stok_merchandiser ss
-                            JOIN ( SELECT MAX ( ss2.tanggal_stok ) AS tgl, ss2.user_id 
-                                    FROM md.stok_merchandiser ss2 
-                                    WHERE ss2.user_id IN ({{.QUserId}}) 
-                                    AND DATE(ss2.tanggal_stok) <= CURRENT_DATE 
-                                    GROUP BY ss2.user_id 
-                                ) s 
-                                ON s.tgl = ss.tanggal_stok AND s.user_id = ss.user_id
-                            AND s.user_id = ss.user_id`
-
-	getStokMerchandiser, err := helpers.PrepareQuery(qStokMerchandiser, templateParamQuery)
-
-	if err != nil {
-		fmt.Println(err.Error())
-		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
-			Message: "Terjadi kesalahan ketika generate query",
-			Success: false,
-		})
-	}
-
-	dataStokMerchandiser, err := helpers.ExecuteQuery(getStokMerchandiser)
-
-	if err != nil && err.Error() != "record not found" {
-		tx.Rollback()
-		fmt.Println(err.Error())
-		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
-			Message: "Terjadi kesalahan ketika generate query",
-			Success: false,
-		})
+		return err
 	}
 
 	if stokUser.ID != 0 {
 		tx.Rollback()
-		returnExistStok := make(map[string]interface{})
-		returnExistStok["stok_user"] = stokUser
-		returnExistStok["stok_salesman"] = dataStokSalesman
-		returnExistStok["stok_merchandiser"] = dataStokMerchandiser
 		return c.Status(http.StatusOK).JSON(helpers.Response{
 			Message: "Data sudah ada",
 			Success: true,
-			Data:    returnExistStok,
+			Data:    datas[0],
 		})
 	}
 
+	// fmt.Println(stokUser)
 	if err := tx.Create(&stokUser).Error; err != nil {
 		tx.Rollback()
 		fmt.Println(err.Error())
@@ -688,7 +660,7 @@ func SetStock(c *fiber.Ctx) error {
                                 {{.QSelect}}
                                 {{.QSelectParentID}}
                         FROM (
-                                SELECT user_id, item_id, COALESCE(lss.stok_akhir,0) as stok_awal, COALESCE(lss.stok_akhir,0) as stok_akhir, condition, pita
+                                SELECT user_id, item_id, COALESCE(lss.stok_akhir,0) as stok_awal, COALESCE(lss.stok_akhir,0) as stok_akhir
                                 FROM (
                                     SELECT DISTINCT ON (user_id, item_id) 
                                         id, 
@@ -747,34 +719,15 @@ func SetStock(c *fiber.Ctx) error {
 			Success: false,
 		})
 	}
-	// fmt.Println(query2)
 
-	dataStokSalesman, err = helpers.ExecuteQuery(getStokSalesman)
-
-	if err != nil && err.Error() != "record not found" {
+	if err := tx.Where("DATE(tanggal_stok) = DATE(?) AND user_id = ? AND gudang_id = ? "+qWhere, stokUser.TanggalStok, stokUser.UserId, gudang.ID).First(&stokUser).Error; err != nil && err.Error() != "record not found" {
 		tx.Rollback()
 		fmt.Println(err.Error())
-		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
-			Message: "Terjadi kesalahan ketika generate query",
+		return c.Status(http.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan data stok",
 			Success: false,
 		})
 	}
-
-	dataStokMerchandiser, err = helpers.ExecuteQuery(getStokMerchandiser)
-
-	if err != nil && err.Error() != "record not found" {
-		tx.Rollback()
-		fmt.Println(err.Error())
-		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
-			Message: "Terjadi kesalahan ketika generate query",
-			Success: false,
-		})
-	}
-
-	returnExistStok := make(map[string]interface{})
-	returnExistStok["stok_user"] = stokUser
-	returnExistStok["stok_salesman"] = dataStokSalesman
-	returnExistStok["stok_merchandiser"] = dataStokMerchandiser
 
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
@@ -785,10 +738,27 @@ func SetStock(c *fiber.Ctx) error {
 		})
 	}
 
+	sUserID = strconv.Itoa(int(stokUser.UserId))
+	sGudangID = strconv.Itoa(int(stokUser.GudangId))
+
+	if &stokUser.UserIdSubtitute != nil {
+		sUserIDSubtitute = strconv.Itoa(int(stokUser.UserIdSubtitute))
+	} else {
+		sUserIDSubtitute = ""
+	}
+
+	tanggalStokStr = fmt.Sprintf("%s", stokUser.TanggalStok)
+	datas, err = getStokParent(&sUserID, &tanggalStokStr, &sUserIDSubtitute, &sGudangID, c)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+
 	return c.Status(fiber.StatusOK).JSON(helpers.Response{
 		Message: "Data stok telah berhasil dibuat",
 		Success: true,
-		Data:    returnExistStok,
+		Data:    datas[0],
 	})
 }
 
@@ -933,16 +903,70 @@ func getPermissions(userId int32, c *fiber.Ctx) ([]map[string]interface{}, error
 
 }
 
+// func GetCheckSO(c *fiber.Ctx) error {
+
+// 	userId := c.Query("userId")
+
+// 	StokSalesman := structs.StokSalesman{}
+// 	StokMerchandiser := structs.StokMerchandiser{}
+
+// 	err := db.DB.
+// 		Where("user_id = ? AND is_complete = 0 AND DATE(tanggal_stok) <> CURRENT_DATE", userId).
+// 		Order("DATE(tanggal_stok) ASC").
+// 		First(&StokSalesman).Error
+// 	if err != nil && err.Error() != "record not found" {
+// 		fmt.Println(err.Error())
+// 	}
+
+// 	err = db.DB.
+// 		Where("user_id = ? AND is_complete = 0 AND DATE(tanggal_stok) <> CURRENT_DATE", userId).
+// 		Order("DATE(tanggal_stok) ASC").
+// 		First(&StokMerchandiser).Error
+// 	if err != nil && err.Error() != "record not found" {
+// 		fmt.Println(err.Error())
+// 	}
+
+// 	returnData := make(map[string]interface{}, 2)
+
+// 	if !StokSalesman.TanggalStok.IsZero() {
+// 		returnData["produk"] = StokSalesman.TanggalStok.Format("2006-01-02")
+// 	} else {
+// 		returnData["produk"] = nil
+// 	}
+
+// 	if !StokMerchandiser.TanggalStok.IsZero() {
+// 		returnData["item"] = StokMerchandiser.TanggalStok.Format("2006-01-02")
+// 	} else {
+// 		returnData["item"] = nil
+// 	}
+
+//		return c.Status(fiber.StatusOK).JSON(helpers.Response{
+//			Message: "Data berhasil diambil",
+//			Success: true,
+//			Data:    returnData,
+//		})
+//	}
 func GetCheckSO(c *fiber.Ctx) error {
 
 	userId := c.Query("userId")
+	branchId := c.Query("branchId")
+
+	gudang := structs.Gudang{}
+
+	if err := db.DB.Where("branch_id = ? ", branchId).First(&gudang).Error; err != nil && err.Error() != "record not found" {
+		fmt.Println(err.Error())
+		return c.Status(http.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan data gudang",
+			Success: false,
+		})
+	}
 
 	// StokSalesman := structs.StokSalesman{}
 	// StokMerchandiser := structs.StokMerchandiser{}
 	StokUser := structs.StokUser{}
 
 	err := db.DB.
-		Where("user_id = ? AND is_complete = 0", userId).
+		Where("user_id = ? AND is_complete = 0 AND gudang_id = ?", userId, gudang.ID).
 		Order("DATE(tanggal_stok) ASC").
 		First(&StokUser).Error
 	if err != nil && err.Error() != "record not found" {
@@ -968,8 +992,8 @@ func GetCheckSO(c *fiber.Ctx) error {
 	returnData := make(map[string]interface{})
 	// var returnData map[string]interface{}
 
-	if !StokUser.TanggalStok.IsZero() {
-		returnData["pending_so"] = StokUser.TanggalStok.Format("2006-01-02")
+	if &StokUser.TanggalStok == nil {
+		returnData["pending_so"] = fmt.Sprintf("%s", time.Now().Format("2006-01-02"))
 	} else {
 		returnData["pending_so"] = nil
 	}

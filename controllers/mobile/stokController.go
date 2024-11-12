@@ -6,6 +6,7 @@ import (
 	db "pluto_remastered/config"
 	"pluto_remastered/helpers"
 	"pluto_remastered/structs"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -601,5 +602,300 @@ func GetStokItem(c *fiber.Ctx) error {
 		Message: "Data stok berhasil diambil",
 		Data:    returnData,
 		Success: true,
+	})
+}
+
+func getStokParent(userId *string, date *string, userIdSubtitute *string, gudangId *string, c *fiber.Ctx) ([]map[string]interface{}, error) {
+
+	// fmt.Println("from function 1", userId, date, userIdSubtitute, gudangId)
+	// fmt.Println("from function 2",*userId, *date, *userIdSubtitute, *gudangId)
+
+	templateQuery := `WITH penjualans as (
+							SELECT p.user_id, DATE(p.tanggal_penjualan) as dates, pd.produk_id, pd.condition, pd.pita, SUM(pd.jumlah) as qty
+							FROM penjualan p
+							JOIN penjualan_detail pd
+								ON p.id = pd.penjualan_id
+							WHERE p.user_id = {{.QInputUserId}} AND DATE(p.tanggal_penjualan) = '{{.QInputDate}}' {{.QPWhereSubtitute}}
+							GROUP BY p.user_id, DATE(p.tanggal_penjualan), pd.produk_id, pd.condition, pd.pita
+						), pengembalians as (
+							SELECT p.user_id, DATE(p.tanggal_pengembalian) as dates, pd.produk_id, pd.condition, pd.pita, SUM(pd.jumlah) as qty
+							FROM pengembalian p
+							JOIN pengembalian_detail pd
+								ON p.id = pd.pengembalian_id
+							WHERE p.user_id = {{.QInputUserId}} AND DATE(p.tanggal_pengembalian) = '{{.QInputDate}}' {{.QPWhereSubtitute}}
+							GROUP BY p.user_id, DATE(p.tanggal_pengembalian), pd.produk_id, pd.condition, pd.pita
+						), order_gudangs as (
+							SELECT ssr.user_id, DATE(ssr.tanggal_riwayat) as dates, ssr.produk_id, ssr.condition, ssr.pita, SUM(ssr.jumlah) as qty
+							FROM stok_salesman_riwayat ssr
+							WHERE ssr.user_id = {{.QInputUserId}} AND DATE(ssr.tanggal_riwayat) = '{{.QInputDate}}' AND ssr.aksi = 'ORDER' {{.QSsrWhereSubtitute}}
+							GROUP BY ssr.user_id, DATE(ssr.tanggal_riwayat) , ssr.produk_id, ssr.condition, ssr.pita
+						), retur_gudangs as (
+							SELECT ssr.user_id, DATE(ssr.tanggal_riwayat) as dates, ssr.produk_id, ssr.condition, ssr.pita, SUM(ssr.jumlah) as qty
+							FROM stok_salesman_riwayat ssr
+							WHERE ssr.user_id = {{.QInputUserId}} AND DATE(ssr.tanggal_riwayat) = '{{.QInputDate}}' AND ssr.aksi = 'RETUR' {{.QSsrWhereSubtitute}}
+							GROUP BY ssr.user_id, DATE(ssr.tanggal_riwayat) , ssr.produk_id, ssr.condition, ssr.pita
+						), transactions as (
+							SELECT tr.user_id, DATE(tr.datetime) as dates, trd.item_id, SUM(trd.qty) as qty
+							FROM md.transaction tr
+							JOIN md.transaction_detail trd
+								ON tr.id = trd.transaction_id
+							WHERE tr.user_id = {{.QInputUserId}} AND DATE(tr.datetime) = '{{.QInputDate}}' {{.QTrWhereSubtitute}}
+							GROUP BY tr.user_id, DATE(tr.datetime), trd.item_id
+						), order_items as (
+							SELECT smr.user_id, DATE(smr.tanggal_riwayat) as dates, smr.item_id, SUM(smr.jumlah) as qty
+							FROM md.stok_merchandiser_riwayat smr
+							WHERE smr.user_id = {{.QInputUserId}} AND DATE(smr.tanggal_riwayat) = '{{.QInputDate}}' AND smr.aksi = 'ORDER' {{.QSmrWhereSubtitute}}
+							GROUP BY smr.user_id, DATE(smr.tanggal_riwayat), smr.item_id
+						), retur_items as (
+							SELECT smr.user_id, DATE(smr.tanggal_riwayat) as dates, smr.item_id, SUM(smr.jumlah) as qty
+							FROM md.stok_merchandiser_riwayat smr
+							WHERE smr.user_id = {{.QInputUserId}} AND DATE(smr.tanggal_riwayat) = '{{.QInputDate}}' AND smr.aksi = 'RETUR' {{.QSmrWhereSubtitute}}
+							GROUP BY smr.user_id, DATE(smr.tanggal_riwayat), smr.item_id
+						), stok_salesmans as (
+							SELECT ss.stok_user_id,
+											JSONB_AGG(
+												JSONB_BUILD_OBJECT(
+													'id', ss.id,
+													'stok_gudang_id', ss.stok_gudang_id,
+													'user_id', ss.user_id,
+													'produk_id', ss.produk_id,
+													'tanggal_stok', ss.tanggal_stok,
+													'dtm_crt', ss.dtm_crt,
+													'dtm_upd', ss.dtm_upd,
+													'confirm_key', ss.confirm_key,
+													'is_complete', ss.is_complete,
+													'tanggal_so', ss.tanggal_so,
+													'so_admin_gudang_id', ss.so_admin_gudang_id,
+													'condition', ss.condition,
+													'pita', ss.pita,
+													'stok_awal', ss.stok_awal,
+													'orders', sso.qty,
+													'returs', ssr.qty,
+													'penjualan', pj.qty,
+													'pengembalian', pg.qty,
+													'stok_akhir', ss.stok_akhir
+												)
+											) as detail_produks
+							FROM stok_salesman ss
+							LEFT JOIN penjualans pj
+								ON ss.produk_id = pj.produk_id
+								AND ss.condition = pj.condition
+								AND ss.pita = pj.pita
+								AND DATE(ss.tanggal_stok) = pj.dates
+								AND ss.user_id = pj.user_id
+							LEFT JOIN pengembalians pg
+								ON ss.produk_id = pg.produk_id
+								AND ss.condition = pg.condition
+								AND ss.pita = pg.pita
+								AND DATE(ss.tanggal_stok) = pg.dates
+								AND ss.user_id = pg.user_id
+							LEFT JOIN order_gudangs sso
+								ON ss.produk_id = sso.produk_id
+								AND ss.condition = sso.condition
+								AND ss.pita = sso.pita
+								AND DATE(ss.tanggal_stok) = sso.dates
+								AND ss.user_id = sso.user_id
+							LEFT JOIN retur_gudangs ssr
+								ON ss.produk_id = ssr.produk_id
+								AND ss.condition = ssr.condition
+								AND ss.pita = ssr.pita
+								AND DATE(ss.tanggal_stok) = ssr.dates
+								AND ss.user_id = ssr.user_id
+							WHERE ss.user_id = {{.QInputUserId}} AND DATE(ss.tanggal_stok) = '{{.QInputDate}}' {{.QSSWhereSubtitute}}
+							GROUP BY ss.stok_user_id
+						), stok_merchandisers as (
+							SELECT ss.stok_user_id,
+											JSONB_AGG(
+												JSONB_BUILD_OBJECT(
+													'id', ss.id,
+													'stok_gudang_id', ss.stok_gudang_id,
+													'user_id', ss.user_id,
+													'item_id', ss.item_id,
+													'tanggal_stok', ss.tanggal_stok,
+													'dtm_crt', ss.dtm_crt,
+													'dtm_upd', ss.dtm_upd,
+													'confirm_key', ss.confirm_key,
+													'is_complete', ss.is_complete,
+													'tanggal_so', ss.tanggal_so,
+													'so_admin_gudang_id', ss.so_admin_gudang_id,
+													'stok_awal', ss.stok_awal,
+													'orders', sso.qty,
+													'returs', ssr.qty,
+													'penjualan', tr.qty,
+													'pengembalian', 0,
+													'stok_akhir', ss.stok_akhir
+												)
+											) as detail_items
+							FROM md.stok_merchandiser ss 
+							JOIN md.item i
+								ON ss.item_id = i.id
+							LEFT JOIN item_unit iu
+								ON i.unit_id = iu.id
+							LEFT JOIN transactions tr
+								ON ss.item_id = tr.item_id
+								AND DATE(ss.tanggal_stok) = tr.dates
+								AND ss.user_id = tr.user_id
+							LEFT JOIN order_items sso
+								ON ss.item_id = sso.item_id
+								AND DATE(ss.tanggal_stok) = sso.dates
+								AND ss.user_id = sso.user_id
+							LEFT JOIN retur_items ssr
+								ON ss.item_id = ssr.item_id
+								AND DATE(ss.tanggal_stok) = ssr.dates
+								AND ss.user_id = ssr.user_id
+							WHERE ss.user_id = {{.QInputUserId}} AND DATE(ss.tanggal_stok) = '{{.QInputDate}}' {{.QSSWhereSubtitute}}
+							GROUP BY ss.stok_user_id
+						)
+
+						SELECT su.tanggal_stok,
+								su.gudang_id,
+								su.is_complete,
+								su.tanggal_so,
+								CASE WHEN su.user_id_subtitute IS NOT NULL AND su.user_id_subtitute <> 0 THEN su.user_id_subtitute ELSE su.user_id END as user_id,
+								COALESCE(subs.full_name, u.full_name) as name,
+								CASE WHEN su.user_id_subtitute IS NOT NULL AND su.user_id_subtitute <> 0 THEN 1 ELSE 0 END as is_subtitute,
+								CASE WHEN su.user_id_subtitute IS NOT NULL AND su.user_id_subtitute <> 0 THEN u.id ELSE NULL END as account_owner_id,
+								CASE WHEN su.user_id_subtitute IS NOT NULL AND su.user_id_subtitute <> 0 THEN u.full_name ELSE NULL END as account_owner_name,
+								ss.detail_produks,
+								sm.detail_items
+						FROM stok_user su
+						JOIN public.user u
+							ON su.user_id = u.id
+						LEFT JOIN public.user subs
+							ON su.user_id_subtitute = subs.id
+							AND su.user_id_subtitute <> 0
+						LEFT JOIN stok_salesmans ss
+							ON su.id = ss.stok_user_id
+						LEFT JOIN stok_merchandisers sm
+							ON su.id = sm.stok_user_id
+						WHERE DATE(su.tanggal_stok) = DATE('{{.QInputDate}}')
+							AND su.user_id = {{.QInputUserId}}
+							AND su.gudang_id = {{.QInputGudangId}}
+							{{.QInputUserIdSubtitute}}`
+
+	where := ""
+	if userIdSubtitute != nil {
+		if *userIdSubtitute != "" {
+			where = " AND su.user_id_subtitute = " + *userIdSubtitute
+		}
+	} else {
+		where = " AND (su.user_id_subtitute = 0 OR su.user_id_subtitute IS NULL)"
+	}
+
+	templateParamQuery := make(map[string]interface{})
+
+	if userIdSubtitute != nil {
+		if *userIdSubtitute != "" {
+			templateParamQuery = map[string]interface{}{
+				"QInputUserId":          *userId,
+				"QInputDate":            *date,
+				"QInputUserIdSubtitute": where,
+				"QInputGudangId":        *gudangId,
+				"QPWhereSubtitute":      " AND p.user_id_subtitute = " + *userIdSubtitute,
+				"QSsrWhereSubtitute":    " AND ssr.user_id_subtitute = " + *userIdSubtitute,
+				"QTrWhereSubtitute":     " AND tr.user_id_subtitute = " + *userIdSubtitute,
+				"QSmrWhereSubtitute":    " AND smr.user_id_subtitute = " + *userIdSubtitute,
+				"QSSWhereSubtitute":     " AND ss.user_id_subtitute = " + *userIdSubtitute,
+			}
+		} else {
+			templateParamQuery = map[string]interface{}{
+				"QInputUserId":          *userId,
+				"QInputDate":            *date,
+				"QInputUserIdSubtitute": where,
+				"QInputGudangId":        *gudangId,
+				"QPWhereSubtitute":      "",
+				"QSsrWhereSubtitute":    "",
+				"QTrWhereSubtitute":     "",
+				"QSmrWhereSubtitute":    "",
+				"QSSWhereSubtitute":     "",
+			}
+		}
+	} else {
+		templateParamQuery = map[string]interface{}{
+			"QInputUserId":          *userId,
+			"QInputDate":            *date,
+			"QInputUserIdSubtitute": where,
+			"QInputGudangId":        *gudangId,
+			"QPWhereSubtitute":      "",
+			"QSsrWhereSubtitute":    "",
+			"QTrWhereSubtitute":     "",
+			"QSmrWhereSubtitute":    "",
+			"QSSWhereSubtitute":     "",
+		}
+	}
+
+	query1, err := helpers.PrepareQuery(templateQuery, templateParamQuery)
+
+	if err != nil {
+		fmt.Println(err)
+		return nil, c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika generate query",
+			Success: false,
+		})
+	}
+
+	// fmt.Println(query1)
+
+	returnData, err := helpers.ExecuteQuery(query1)
+
+	if err != nil {
+		fmt.Println(err)
+		return nil, c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika eksekusi query",
+			Success: false,
+		})
+	}
+
+	if len(returnData) == 0 {
+		return nil, c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
+			Message: "Data stok tidak ditemukan",
+			Success: false,
+		})
+	}
+
+	return returnData, nil
+}
+
+func GetStoks(c *fiber.Ctx) error {
+	type TemplateInputUser struct {
+		UserId          *string `json:"userId"`
+		Date            *string `json:"date"`
+		UserIdSubtitute *string `json:"userIdSubtitute"`
+		BranchID        *string `json:"branchId"`
+	}
+
+	inputUser := new(TemplateInputUser)
+	err := c.QueryParser(inputUser)
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan input data",
+			Success: false,
+		})
+	}
+
+	gudang := new(structs.Gudang)
+	if err := db.DB.Where("branch_id = ? ", *inputUser.BranchID).First(&gudang).Error; err != nil && err.Error() != "record not found" {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan data gudang",
+			Success: false,
+		})
+	}
+
+	sGudangID := strconv.Itoa(int(gudang.ID))
+	// fmt.Println(inputUser.UserId, inputUser.Date, inputUser.UserIdSubtitute, sGudangID)
+	datas, err := getStokParent(inputUser.UserId, inputUser.Date, inputUser.UserIdSubtitute, &sGudangID, c)
+
+	// fmt.Println(datas)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helpers.Response{
+		Message: "Berhasil mendapatkan data",
+		Success: true,
+		Data:    datas[0],
+		// Data:    nil,
 	})
 }

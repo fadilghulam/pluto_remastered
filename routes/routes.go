@@ -41,7 +41,7 @@ func Setup(app *fiber.App) {
 	app.Get("/generateFlag", controllers.GenerateFlag)
 	app.Get("/getData", controllers.GetData)
 	app.Get("/getDataToday", controllers.GetDataToday)
-	app.Get("/completeSales", mobile.CompleteSales)
+	app.Get("/getFlag", controllers.GetFlag)
 
 	app.Get("/getPermission", mobile.GetPermission)
 
@@ -73,6 +73,8 @@ func Setup(app *fiber.App) {
 	mobileRoute.Get("getListPengajuan", mobile.GetDataRequests)
 
 	mobileRoute.Get("getCheckSO", mobile.GetCheckSO)
+	mobileRoute.Get("completeSales", mobile.CompleteSales)
+
 	mobileRoute.Post("setStock", mobile.SetStock)
 
 	//sales
