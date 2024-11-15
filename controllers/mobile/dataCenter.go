@@ -985,8 +985,8 @@ func GetCustomerTransaction(c *fiber.Ctx) error {
 		case "piutang":
 			forType = append(forType, "piutang")
 		case "md.transaction":
-			forType = append(forType, "md_transaction")
-			forType = append(forType, "md_transaction_detail")
+			forType = append(forType, "md.transaction")
+			forType = append(forType, "md.transaction_detail")
 		default:
 			forType = append(forType, "penjualan")
 			forType = append(forType, "penjualan_detail")
@@ -998,8 +998,8 @@ func GetCustomerTransaction(c *fiber.Ctx) error {
 			forType = append(forType, "kunjungan")
 			forType = append(forType, "kunjungan_log")
 			forType = append(forType, "piutang")
-			forType = append(forType, "md_transaction")
-			forType = append(forType, "md_transaction_detail")
+			forType = append(forType, "md.transaction")
+			forType = append(forType, "md.transaction_detail")
 		}
 	} else {
 		forType = append(forType, "penjualan")
@@ -1012,8 +1012,8 @@ func GetCustomerTransaction(c *fiber.Ctx) error {
 		forType = append(forType, "kunjungan")
 		forType = append(forType, "kunjungan_log")
 		forType = append(forType, "piutang")
-		forType = append(forType, "md_transaction")
-		forType = append(forType, "md_transaction_detail")
+		forType = append(forType, "md.transaction")
+		forType = append(forType, "md.transaction_detail")
 	}
 
 	var returnData []interface{}
