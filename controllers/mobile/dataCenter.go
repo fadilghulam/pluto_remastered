@@ -6,6 +6,7 @@ import (
 	"net/http"
 	db "pluto_remastered/config"
 	"pluto_remastered/helpers"
+	"pluto_remastered/models"
 	"pluto_remastered/structs"
 	"strconv"
 	"sync"
@@ -903,49 +904,6 @@ func getPermissions(userId int32, c *fiber.Ctx) ([]map[string]interface{}, error
 
 }
 
-// func GetCheckSO(c *fiber.Ctx) error {
-
-// 	userId := c.Query("userId")
-
-// 	StokSalesman := structs.StokSalesman{}
-// 	StokMerchandiser := structs.StokMerchandiser{}
-
-// 	err := db.DB.
-// 		Where("user_id = ? AND is_complete = 0 AND DATE(tanggal_stok) <> CURRENT_DATE", userId).
-// 		Order("DATE(tanggal_stok) ASC").
-// 		First(&StokSalesman).Error
-// 	if err != nil && err.Error() != "record not found" {
-// 		fmt.Println(err.Error())
-// 	}
-
-// 	err = db.DB.
-// 		Where("user_id = ? AND is_complete = 0 AND DATE(tanggal_stok) <> CURRENT_DATE", userId).
-// 		Order("DATE(tanggal_stok) ASC").
-// 		First(&StokMerchandiser).Error
-// 	if err != nil && err.Error() != "record not found" {
-// 		fmt.Println(err.Error())
-// 	}
-
-// 	returnData := make(map[string]interface{}, 2)
-
-// 	if !StokSalesman.TanggalStok.IsZero() {
-// 		returnData["produk"] = StokSalesman.TanggalStok.Format("2006-01-02")
-// 	} else {
-// 		returnData["produk"] = nil
-// 	}
-
-// 	if !StokMerchandiser.TanggalStok.IsZero() {
-// 		returnData["item"] = StokMerchandiser.TanggalStok.Format("2006-01-02")
-// 	} else {
-// 		returnData["item"] = nil
-// 	}
-
-//		return c.Status(fiber.StatusOK).JSON(helpers.Response{
-//			Message: "Data berhasil diambil",
-//			Success: true,
-//			Data:    returnData,
-//		})
-//	}
 func GetCheckSO(c *fiber.Ctx) error {
 
 	userId := c.Query("userId")
@@ -961,8 +919,6 @@ func GetCheckSO(c *fiber.Ctx) error {
 		})
 	}
 
-	// StokSalesman := structs.StokSalesman{}
-	// StokMerchandiser := structs.StokMerchandiser{}
 	StokUser := structs.StokUser{}
 
 	err := db.DB.
@@ -973,46 +929,102 @@ func GetCheckSO(c *fiber.Ctx) error {
 		fmt.Println(err.Error())
 	}
 
-	// err := db.DB.
-	// 	Where("user_id = ? AND is_complete = 0 AND DATE(tanggal_stok) <> CURRENT_DATE", userId).
-	// 	Order("DATE(tanggal_stok) ASC").
-	// 	First(&StokSalesman).Error
-	// if err != nil && err.Error() != "record not found" {
-	// 	fmt.Println(err.Error())
-	// }
-
-	// err = db.DB.
-	// 	Where("user_id = ? AND is_complete = 0 AND DATE(tanggal_stok) <> CURRENT_DATE", userId).
-	// 	Order("DATE(tanggal_stok) ASC").
-	// 	First(&StokMerchandiser).Error
-	// if err != nil && err.Error() != "record not found" {
-	// 	fmt.Println(err.Error())
-	// }
+	var tempTanggalStok time.Time
+	tempTanggalStok, _ = time.Parse("2006-01-02T15:04:05Z", StokUser.TanggalStok)
 
 	returnData := make(map[string]interface{})
-	// var returnData map[string]interface{}
 
-	if &StokUser.TanggalStok == nil {
-		returnData["pending_so"] = fmt.Sprintf("%s", time.Now().Format("2006-01-02"))
+	if !tempTanggalStok.IsZero() {
+		returnData["pending_so"] = fmt.Sprintf("%s", tempTanggalStok.Format("2006-01-02"))
 	} else {
 		returnData["pending_so"] = nil
 	}
-
-	// if !StokSalesman.TanggalStok.IsZero() {
-	// 	returnData["produk"] = StokSalesman.TanggalStok.Format("2006-01-02")
-	// } else {
-	// 	returnData["produk"] = nil
-	// }
-
-	// if !StokMerchandiser.TanggalStok.IsZero() {
-	// 	returnData["item"] = StokMerchandiser.TanggalStok.Format("2006-01-02")
-	// } else {
-	// 	returnData["item"] = nil
-	// }
 
 	return c.Status(fiber.StatusOK).JSON(helpers.Response{
 		Message: "Data berhasil diambil",
 		Success: true,
 		Data:    returnData,
+	})
+}
+
+func GetCustomerTransaction(c *fiber.Ctx) error {
+	type Input struct {
+		CustomerID string  `json:"customerId"`
+		DateStart  string  `json:"dateStart"`
+		DateEnd    string  `json:"dateEnd"`
+		Type       *string `json:"type"`
+	}
+
+	input := Input{}
+
+	if err := c.QueryParser(&input); err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusBadRequest).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mengambil input data",
+			Success: false,
+		})
+	}
+
+	var forType []string
+	if input.Type != nil {
+		switch *input.Type {
+		case "penjualan":
+			forType = append(forType, "penjualan")
+			forType = append(forType, "penjualan_detail")
+		case "pengembalian":
+			forType = append(forType, "pengembalian")
+			forType = append(forType, "pengembalian_detail")
+		case "pembayaran_piutang":
+			forType = append(forType, "pembayaran_piutang")
+			forType = append(forType, "pembayaran_piutang_detail")
+		case "payment":
+			forType = append(forType, "payment")
+		case "kunjungan":
+			forType = append(forType, "kunjungan")
+			forType = append(forType, "kunjungan_log")
+		case "piutang":
+			forType = append(forType, "piutang")
+		case "md.transaction":
+			forType = append(forType, "md_transaction")
+			forType = append(forType, "md_transaction_detail")
+		default:
+			forType = append(forType, "penjualan")
+			forType = append(forType, "penjualan_detail")
+			forType = append(forType, "pengembalian")
+			forType = append(forType, "pengembalian_detail")
+			forType = append(forType, "pembayaran_piutang")
+			forType = append(forType, "pembayaran_piutang_detail")
+			forType = append(forType, "payment")
+			forType = append(forType, "kunjungan")
+			forType = append(forType, "kunjungan_log")
+			forType = append(forType, "piutang")
+			forType = append(forType, "md_transaction")
+			forType = append(forType, "md_transaction_detail")
+		}
+	} else {
+		forType = append(forType, "penjualan")
+		forType = append(forType, "penjualan_detail")
+		forType = append(forType, "pengembalian")
+		forType = append(forType, "pengembalian_detail")
+		forType = append(forType, "pembayaran_piutang")
+		forType = append(forType, "pembayaran_piutang_detail")
+		forType = append(forType, "payment")
+		forType = append(forType, "kunjungan")
+		forType = append(forType, "kunjungan_log")
+		forType = append(forType, "piutang")
+		forType = append(forType, "md_transaction")
+		forType = append(forType, "md_transaction_detail")
+	}
+
+	var returnData []interface{}
+
+	dynamicGet := models.GetStructTransactions(forType, input.CustomerID, input.DateStart, input.DateEnd)
+
+	returnData = append(returnData, dynamicGet)
+
+	return c.Status(fiber.StatusOK).JSON(helpers.Response{
+		Message: "Data berhasil diambil",
+		Success: true,
+		Data:    returnData[0],
 	})
 }

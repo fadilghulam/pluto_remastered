@@ -87,6 +87,8 @@ func Setup(app *fiber.App) {
 	mobileRoute.Get("getListOrderItem", mobile.GetListOrderMD)
 	mobileRoute.Post("postOrderItem", mobile.PostOrderMD)
 
+	mobileRoute.Get("getTransactions", mobile.GetCustomerTransaction)
+
 	mobileRoute.Use(AuthMiddleware)
 	mobileRoute.Post("getRefreshUser", controllers.RefreshDataUser)
 }
