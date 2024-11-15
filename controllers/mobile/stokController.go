@@ -892,6 +892,14 @@ func GetStoks(c *fiber.Ctx) error {
 		return err
 	}
 
+	if len(datas) > 0 {
+		return c.Status(fiber.StatusOK).JSON(helpers.Response{
+			Message: "Data tidak ditemukan",
+			Success: true,
+			Data:    make(map[string]interface{}),
+		})
+	}
+
 	return c.Status(fiber.StatusOK).JSON(helpers.Response{
 		Message: "Berhasil mendapatkan data",
 		Success: true,
