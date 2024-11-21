@@ -256,6 +256,293 @@ func GetUserBranch(c *fiber.Ctx) error {
 	})
 }
 
+func GetDashboardOmzet(c *fiber.Ctx) error {
+
+	start := time.Now()
+
+	branchId := helpers.ParamArray(c.Context().QueryArgs().PeekMulti("branchId[]"))
+	date := c.Query("date")
+
+	if date == "" {
+		date = "CURRENT_DATE"
+	} else {
+		date = " DATE('" + date + "') "
+	}
+
+	var qWhereBranchId, QWhereBranchHolderId string
+	if len(branchId) > 0 {
+		qWhereBranchId = " AND p.branch_id IN (" + strings.Join(branchId, ",") + ")"
+		QWhereBranchHolderId = " AND bh.id IN (" + strings.Join(branchId, ",") + ")"
+		// qOnBranchId = qWhereBranchId
+	}
+
+	templateReplaceQuery := map[string]interface{}{
+		"QWherePbranchId":      qWhereBranchId,
+		"QWhereBranchHolderId": QWhereBranchHolderId,
+		"QDate":                date,
+	}
+
+	queryGetOmzet := `WITH penjualan_this_month as (
+							SELECT SUM((pd.harga - pd.diskon) * pd.jumlah) as total_penjualan,
+											SUM(pd.jumlah) as total_pack,
+											SUM(pd.jumlah) FILTER (WHERE pd.harga <> 0) as total_pack_omzet,
+											SUM(pd.jumlah) FILTER (WHERE pd.harga = 0) as total_pack_bonus
+							FROM penjualan p
+							JOIN penjualan_detail pd
+								ON p.id = pd.penjualan_id
+							WHERE 
+								DATE(p.tanggal_penjualan) 
+									BETWEEN DATE(date_trunc('month', {{.QDate}})) 
+											AND DATE(date_trunc('month', {{.QDate}}) + '1 month'::interval - '1 day'::interval) 
+								{{.QWherePbranchId}}
+						), penjualan_last_month as (
+							SELECT SUM((pd.harga - pd.diskon) * pd.jumlah) as total_penjualan, 
+										SUM(pd.jumlah) as total_pack,
+										SUM(pd.jumlah) FILTER (WHERE pd.harga <> 0) as total_pack_omzet,
+										SUM(pd.jumlah) FILTER (WHERE pd.harga = 0) as total_pack_bonus
+							FROM penjualan p
+							JOIN penjualan_detail pd
+								ON p.id = pd.penjualan_id
+							WHERE 
+								DATE(p.tanggal_penjualan) 
+									BETWEEN DATE((date_trunc('month', {{.QDate}}) - '1 month'::interval)) 
+											AND DATE((date_trunc('month', {{.QDate}})- '1 month'::interval) + '1 month'::interval - '1 day'::interval)
+
+								{{.QWherePbranchId}}
+						), pengembalian_this_month as (
+							SELECT SUM(pd.harga * pd.jumlah) as total_penjualan,
+										SUM(pd.jumlah) as total_pack,
+										SUM(pd.jumlah) FILTER (WHERE pd.harga <> 0) as total_pack_omzet,
+										SUM(pd.jumlah) FILTER (WHERE pd.harga = 0) as total_pack_bonus
+							FROM pengembalian p
+							JOIN pengembalian_detail pd
+								ON p.id = pd.pengembalian_id
+							WHERE 
+								DATE(p.tanggal_pengembalian) 
+									BETWEEN DATE(date_trunc('month', {{.QDate}})) 
+											AND DATE(date_trunc('month', {{.QDate}}) + '1 month'::interval - '1 day'::interval)
+								{{.QWherePbranchId}}
+								
+						), pengembalian_last_month as (
+							SELECT SUM(pd.harga * pd.jumlah) as total_penjualan,
+										SUM(pd.jumlah) as total_pack,
+										SUM(pd.jumlah) FILTER (WHERE pd.harga <> 0) as total_pack_omzet,
+										SUM(pd.jumlah) FILTER (WHERE pd.harga = 0) as total_pack_bonus
+							FROM pengembalian p
+							JOIN pengembalian_detail pd
+								ON p.id = pd.pengembalian_id
+							WHERE 
+								DATE(p.tanggal_pengembalian) 
+									BETWEEN DATE((date_trunc('month', {{.QDate}}) - '1 month'::interval)) 
+											AND DATE((date_trunc('month', {{.QDate}})- '1 month'::interval) + '1 month'::interval - '1 day'::interval)
+								{{.QWherePbranchId}}
+						)
+
+						SELECT data.otm as this_month, 
+										data.olm as last_month,
+										ROUND((((data.otm - data.olm)  / CASE WHEN data.olm = 0 THEN 1 ELSE data.olm END) * 100)::numeric,2) as growth
+						FROM (
+							SELECT COALESCE(MAX(sq.total_penjualan) FILTER (WHERE sq.flag = 'ptm'),0) - 
+											COALESCE(MAX(sq.total_penjualan) FILTER (WHERE sq.flag = 'pgtm'),0) as otm,
+											COALESCE(MAX(sq.total_penjualan) FILTER (WHERE sq.flag = 'plm'),0) - 
+											COALESCE(MAX(sq.total_penjualan) FILTER (WHERE sq.flag = 'pglm'),0) as olm
+							FROM (
+								SELECT *, 'ptm' as flag
+								FROM penjualan_this_month ptm
+
+								UNION ALL
+
+								SELECT *, 'plm' as flag
+								FROM penjualan_last_month plm
+
+								UNION ALL
+
+								SELECT *, 'pgtm' as flag
+								FROM pengembalian_this_month pgtm
+
+								UNION ALL
+
+								SELECT *, 'pglm' as flag
+								FROM pengembalian_last_month pglm
+							) sq
+						) data
+						`
+
+	query1, err := helpers.PrepareQuery(queryGetOmzet, templateReplaceQuery)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika generate query",
+			Success: false,
+		})
+	}
+
+	dataOmzet, err := helpers.ExecuteQuery(query1)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika mengambil data omzet",
+			Success: false,
+		})
+	}
+
+	queryGetPiutang := `SELECT SUM(data.pitm) as piutang_this_month, COALESCE(SUM(data.pilm),0) as piutang_last_month, ROUND((((SUM(data.pitm) - COALESCE(SUM(data.pilm),0))  / CASE WHEN SUM(data.pilm) = 0 THEN 1 ELSE SUM(data.pilm) END) * 100)::numeric,2) as growth
+						FROM (
+						SELECT
+							SUM( CASE WHEN (DATE_PART('day',{{.QDate}}::timestamp -DATE(pi.tanggal_piutang)::timestamp) > 90 )
+								THEN total_piutang-COALESCE(ppd.nominal,0) ELSE 0 END ) AS pitm, 
+		--                     SUM( CASE WHEN (DATE_PART('day',{{.QDate}}::timestamp -DATE(pi.tanggal_piutang)::timestamp) > 90 )
+		--                          THEN total_piutang-COALESCE(ppd.nominal,0) ELSE 0 END ) AS pilm,
+												0 as pilm,
+							SUM(total_piutang-COALESCE(ppd.nominal,0)) AS total
+								
+							FROM
+								piutang pi
+							LEFT JOIN
+								(SELECT piutang_id, SUM(nominal) as nominal 
+								FROM pembayaran_piutang pp
+								JOIN pembayaran_piutang_detail ppd 
+								ON ppd.pembayaran_piutang_id = pp.id
+								WHERE DATE(pp.tanggal_pembayaran) <= {{.QDate}}
+								GROUP BY piutang_id) ppd 
+								ON ppd.piutang_id = pi.id
+							JOIN penjualan p
+							ON p.id = pi.penjualan_id
+							JOIN customer c
+							ON c.id = p.customer_id  AND c.is_kasus IN ( 0 )
+							JOIN salesman se
+							ON se.id = p.salesman_id
+
+							LEFT JOIN
+							area ae
+							ON ae.id = p.area_id 
+							LEFT JOIN branch be
+							ON be.id = p.branch_id 
+							LEFT JOIN rayon re 
+							ON re.id = p.rayon_id 
+							LEFT JOIN sr sre
+							ON sre.id = p.sr_id 
+
+							JOIN salesman sh
+							ON c.salesman_id = sh.id
+							LEFT JOIN area ah
+							ON ah.id = ANY(sh.area_id) AND ah.id = p.area_id
+							LEFT JOIN branch bh
+							ON sh.branch_id = bh.id 
+							LEFT JOIN rayon rh
+							ON rh.id = bh.rayon_id 
+							LEFT JOIN sr srh 
+							ON srh.id = rh.sr_id 
+
+							WHERE
+								DATE(pi.tanggal_piutang) <= {{.QDate}} 
+								AND c.is_kasus IN ( 0 )
+								AND rh.id <> 501
+								{{.QWhereBranchHolderId}}
+
+							UNION ALL
+
+							SELECT
+								0 as pitm,
+								SUM( CASE WHEN (DATE_PART('day',({{.QDate}}-'1 month'::interval)::timestamp -DATE(pi.tanggal_piutang)::timestamp) > 90 )
+									THEN total_piutang-COALESCE(ppd.nominal,0) ELSE 0 END ) AS pilm,
+								SUM(total_piutang-COALESCE(ppd.nominal,0)) AS total
+								
+							FROM
+								piutang pi
+							LEFT JOIN
+								(SELECT piutang_id, SUM(nominal) as nominal 
+								FROM pembayaran_piutang pp
+								JOIN pembayaran_piutang_detail ppd 
+								ON ppd.pembayaran_piutang_id = pp.id
+								WHERE DATE(pp.tanggal_pembayaran) <= ({{.QDate}}-'1 month'::interval)
+								GROUP BY piutang_id) ppd 
+								ON ppd.piutang_id = pi.id
+							JOIN penjualan p
+							ON p.id = pi.penjualan_id
+							JOIN customer c
+							ON c.id = p.customer_id  AND c.is_kasus IN ( 0 )
+							JOIN salesman se
+							ON se.id = p.salesman_id
+
+							LEFT JOIN
+							area ae
+							ON ae.id = p.area_id 
+							LEFT JOIN branch be
+							ON be.id = p.branch_id 
+							LEFT JOIN rayon re 
+							ON re.id = p.rayon_id 
+							LEFT JOIN sr sre
+							ON sre.id = p.sr_id 
+
+							JOIN salesman sh
+							ON c.salesman_id = sh.id
+							LEFT JOIN area ah
+							ON ah.id = ANY(sh.area_id) AND ah.id = p.area_id
+							LEFT JOIN branch bh
+							ON sh.branch_id = bh.id 
+							LEFT JOIN rayon rh
+							ON rh.id = bh.rayon_id 
+							LEFT JOIN sr srh 
+							ON srh.id = rh.sr_id 
+
+							WHERE
+								DATE(pi.tanggal_piutang) <= ({{.QDate}}-'1 month'::interval)
+								AND c.is_kasus IN ( 0 )
+								AND rh.id <> 501
+								{{.QWhereBranchHolderId}}
+						) data`
+
+	query2, err := helpers.PrepareQuery(queryGetPiutang, templateReplaceQuery)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika generate query",
+			Success: false,
+		})
+	}
+
+	dataPiutang, err := helpers.ExecuteQuery(query2)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Terjadi kesalahan ketika mengambil data piutang",
+			Success: false,
+		})
+	}
+
+	returnData := make(map[string]interface{})
+
+	if len(dataOmzet) > 0 {
+		returnData["omzet"] = dataOmzet[0]
+	}
+
+	if len(dataPiutang) > 0 {
+		returnData["receiveable"] = dataPiutang[0]
+	}
+
+	elapsed := time.Since(start)
+
+	type Response struct {
+		Message string        `json:"message"`
+		Success bool          `json:"success"`
+		Data    interface{}   `json:"data"`
+		Elapsed time.Duration `json:"elapsed"`
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Message: "Success",
+		Success: true,
+		Data:    returnData,
+		Elapsed: time.Duration(elapsed.Seconds()),
+	})
+
+}
+
 func TestQuery(c *fiber.Ctx) error {
 
 	result, err := helpers.NewExecuteQuery(`SELECT sq.date, JSON_AGG(sq.x), JSON_AGG(sq.x2), 'test5'

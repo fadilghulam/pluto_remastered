@@ -57,11 +57,15 @@ func Setup(app *fiber.App) {
 	officeRoute.Get("/TestQuery", controllers.TestQuery)
 	officeRoute.Get("/getSalesmanDaily", controllers.GetSalesmanDailySales)
 	officeRoute.Get("/getUserBranch", controllers.GetUserBranch)
+	officeRoute.Get("getDashboardOmzet", controllers.GetDashboardOmzet)
 
 	mobileRoute := app.Group("pluto-mobile")
 	mobileRoute.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Landing Page Pluto Mobile!")
 	})
+
+	mobileRoute.Post("loginAs", controllers.LoginAs)
+	mobileRoute.Post("logout", controllers.Logout)
 
 	mobileRoute.Get("getAppVersioning", mobile.GetAppVersioning)
 
