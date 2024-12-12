@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	db "pluto_remastered/config"
 	"strings"
@@ -63,6 +64,36 @@ func ExecuteGORMQueryIndexString(query string, resultsChan chan<- map[string][]m
 	defer wg.Done()
 
 	results, _ := ExecuteQuery(query)
+
+	var res []map[string]interface{}
+
+	queries := fmt.Sprintf(`SELECT JSON_AGG(data) as data FROM (%s) AS data`, query)
+
+	if err := db.DB.Exec(queries).Scan(&res).Error; err != nil {
+		fmt.Println("a")
+	}
+
+	fmt.Println(db.DB.Exec(queries))
+
+	for _, body := range results {
+
+		for key, value := range body {
+			if key == "id" || key == "customer_id" || key == "penjualan_id" ||
+				key == "piutang_id" || key == "pengembalian_id" || key == "kunjungan_id" ||
+				key == "pembayaran_piutang_id" || key == "payment_id" {
+				// if strings.Contains(key, "id") && (key != "user_id" || key != "user_id_subtitute")  {
+				switch v := value.(type) {
+				case json.Number:
+					// Convert float64 to an integer, then to a string
+					body[key] = v.String()
+				default:
+					// Convert other types to a string
+					body[key] = fmt.Sprintf("%v", value)
+				}
+			}
+
+		}
+	}
 
 	resultsChan <- map[string][]map[string]interface{}{index: results}
 }

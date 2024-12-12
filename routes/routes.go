@@ -58,6 +58,9 @@ func Setup(app *fiber.App) {
 	officeRoute.Get("/getSalesmanDaily", controllers.GetSalesmanDailySales)
 	officeRoute.Get("/getUserBranch", controllers.GetUserBranch)
 	officeRoute.Get("getDashboardOmzet", controllers.GetDashboardOmzet)
+	officeRoute.Get("getReceiveableDetail", controllers.GetReceiveableDetail)
+
+	officeRoute.Post("postPrompt", controllers.PostPrompt)
 
 	mobileRoute := app.Group("pluto-mobile")
 	mobileRoute.Get("/", func(c *fiber.Ctx) error {

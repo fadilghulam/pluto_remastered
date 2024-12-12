@@ -9,6 +9,8 @@ import (
 	// "go_sales_api/models"
 	"os"
 
+	"github.com/sashabaranov/go-openai"
+
 	"github.com/jackc/pgx/v4"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -139,4 +141,15 @@ func GenerateStruct(db *gorm.DB) *gorm.DB {
 	g.Execute()
 
 	return nil
+}
+
+var OpenaiClient *openai.Client
+
+func InitOpenAI() {
+	apiKey := os.Getenv("OPENAI_API_KEY") // Store your API key in an environment variable
+	if apiKey == "" {
+		log.Fatal("OpenAI API key is missing")
+	}
+	OpenaiClient = openai.NewClient(apiKey)
+	log.Println("OpenAI client initialized")
 }

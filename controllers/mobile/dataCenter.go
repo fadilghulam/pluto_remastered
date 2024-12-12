@@ -639,7 +639,7 @@ func SetStock(c *fiber.Ctx) error {
                                                     so_admin_gudang_id
                                         FROM stok_salesman 
                                         WHERE user_id = {{.QUserId}} AND DATE(tanggal_stok) < CURRENT_DATE 
-                                        ORDER BY user_id, produk_id, condition, pita, tanggal_stok DESC
+                                        ORDER BY user_id, produk_id, condition, pita, tanggal_stok DESC, is_complete DESC
                                 ) lss
                                 WHERE stok_akhir <> 0
                         ) sq
@@ -675,7 +675,7 @@ func SetStock(c *fiber.Ctx) error {
                                         so_admin_gudang_id
                                     FROM md.stok_merchandiser 
                                     WHERE user_id = {{.QUserId}} AND DATE(tanggal_stok) < CURRENT_DATE 
-                                    ORDER BY user_id, item_id, tanggal_stok DESC
+                                    ORDER BY user_id, item_id, tanggal_stok DESC, is_complete DESC
                                 ) lss
                                 WHERE stok_akhir <> 0
                         ) sq
