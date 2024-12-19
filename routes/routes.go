@@ -47,6 +47,8 @@ func Setup(app *fiber.App) {
 
 	app.Post("/insertTransactions", mobile.InsertTransactions)
 
+	app.Get("testRandomData", controllers.TestGenerateDataRandom)
+
 	serviceRoute := app.Group("service")
 	serviceRoute.Post("doUpload", controllers.DoUpload)
 

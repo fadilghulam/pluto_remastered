@@ -20,6 +20,7 @@ import (
 )
 
 var DB *gorm.DB
+var DBBot *gorm.DB
 var DBPGX *pgx.Conn
 
 func Connect() {
@@ -30,11 +31,25 @@ func Connect() {
 	host := os.Getenv("POSTGRES_HOST")
 	port := os.Getenv("POSTGRES_PORT")
 	database := os.Getenv("POSTGRES_DB")
+	databaseBot := os.Getenv("POSTGRES_DBBOT")
 
 	// dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local", username, password, host, port, database)
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Jakarta", host, username, password, database, port)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+		// Logger: logger.New(&logrusWriter{Logger: log}, logger.Config{
+		// 	SlowThreshold:             time.Second * 5,
+		// 	Colorful:                  false,
+		// 	IgnoreRecordNotFoundError: true,
+		// 	ParameterizedQueries:      true,
+		// 	LogLevel:                  logger.Info,
+		// }),
+	})
+
+	dsnBot := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Jakarta", host, username, password, databaseBot, port)
+
+	dbBot, err := gorm.Open(postgres.Open(dsnBot), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 		// Logger: logger.New(&logrusWriter{Logger: log}, logger.Config{
 		// 	SlowThreshold:             time.Second * 5,
@@ -57,10 +72,12 @@ func Connect() {
 		panic("connection failed to the database ")
 	}
 	DB = db
+	DBBot = dbBot
 	fmt.Println("db connected successfully")
 
 	// go GenerateStruct(db)
 	// GenerateStruct(db)
+	// GenerateStruct(dbBot)
 
 	// AutoMigrate(db)
 	//if err := DB.AutoMigrate(&models.Cashier{}, &models.Category{}, &models.Payment{}, &models.PaymentType{}, &models.Product{}, &models.Discount{}, &models.Order{}).Error; err != nil {
@@ -116,27 +133,27 @@ func GenerateStruct(db *gorm.DB) *gorm.DB {
 
 	g.UseDB(db)
 
-	g.ApplyBasic(
-		// Generate struct `User` based on table `users`
-		// g.GenerateModel("otp"),
-		g.GenerateModel("customer_type_request"),
-		g.GenerateModel("customer_access_visit_extra"),
-		g.GenerateModel("rute_move_request"),
-		g.GenerateModel("customer_move_request"),
-		g.GenerateModel("customer_access"),
-		g.GenerateModel("salesman_access"),
-		g.GenerateModel("salesman_request_so"),
-		g.GenerateModel("salesman_request"),
-		g.GenerateModel("salesman_access_kunjungan"),
-
-	// 	// Generate struct `Employee` based on table `users`
-	//    g.GenerateModelAs("users", "Employee"),
-
-	)
-
 	// g.ApplyBasic(
-	// 	g.GenerateAllTable()...,
+	// 	// Generate struct `User` based on table `users`
+	// 	// g.GenerateModel("otp"),
+	// 	g.GenerateModel("customer_type_request"),
+	// 	g.GenerateModel("customer_access_visit_extra"),
+	// 	g.GenerateModel("rute_move_request"),
+	// 	g.GenerateModel("customer_move_request"),
+	// 	g.GenerateModel("customer_access"),
+	// 	g.GenerateModel("salesman_access"),
+	// 	g.GenerateModel("salesman_request_so"),
+	// 	g.GenerateModel("salesman_request"),
+	// 	g.GenerateModel("salesman_access_kunjungan"),
+
+	// // 	// Generate struct `Employee` based on table `users`
+	// //    g.GenerateModelAs("users", "Employee"),
+
 	// )
+
+	g.ApplyBasic(
+		g.GenerateAllTable()...,
+	)
 
 	g.Execute()
 
