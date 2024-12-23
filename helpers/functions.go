@@ -194,6 +194,38 @@ func ExecuteQuery(query string) ([]map[string]interface{}, error) {
 
 	return results[0]["data"].([]map[string]interface{}), nil
 }
+func ExecuteQueryBot(query string) ([]map[string]interface{}, error) {
+
+	queries := fmt.Sprintf(`SELECT JSON_AGG(data) as data FROM (%s) AS data`, query)
+
+	rows, err := db.DBBot.Raw(queries).Rows()
+	if err != nil {
+		return nil, err
+	}
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	// datas, err := SaveRowToDynamicStruct(rows, columns)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	results, err := JsonDecode(rows, columns)
+	if err != nil {
+		return nil, err
+	}
+
+	if results[0]["data"] == nil {
+		return nil, nil
+	}
+
+	return results[0]["data"].([]map[string]interface{}), nil
+}
 
 func ExecuteQuery2(query string, specialCondition string) ([]*orderedmap.OrderedMap[string, interface{}], error) {
 

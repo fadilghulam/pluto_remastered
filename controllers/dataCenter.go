@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"pluto_remastered/helpers"
+
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -152,4 +153,93 @@ func GetDataOmzetSetoran(c *fiber.Ctx) error {
 		Message: "Berhasil mendapatkan data",
 		Success: true,
 	})
+}
+
+func GetDictionaries(c *fiber.Ctx) error {
+	results, err := helpers.ExecuteQueryBot("SELECT * FROM dictionary")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan data",
+			Success: false,
+		})
+	}
+
+	if len(results) == 0 {
+		return c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
+			Message: "Data tidak ditemukan",
+			Success: false,
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helpers.ResponseDataMultiple{
+		Data:    results,
+		Message: "Berhasil mendapatkan data",
+		Success: true,
+	})
+}
+
+func GetDictionariesText(c *fiber.Ctx) error {
+	results, err := helpers.ExecuteQueryBot("SELECT * FROM dictionary")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
+			Message: "Gagal mendapatkan data",
+			Success: false,
+		})
+	}
+
+	if len(results) == 0 {
+		return c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
+			Message: "Data tidak ditemukan",
+			Success: false,
+		})
+	}
+
+	var responseString []string
+
+	for _, data := range results {
+		var resultString strings.Builder
+		resultString.WriteString("[function name]\n")
+		resultString.WriteString("- [endpoint url]\n")
+		resultString.WriteString("- [method]\n")
+		resultString.WriteString("- [tags]\n")
+		resultString.WriteString("- [description]\n")
+		resultString.WriteString("- [required_parameters]\n")
+		resultString.WriteString("- [not_required_parameters]\n")
+		resultString.WriteString("\n")
+		resultString.WriteString(fmt.Sprintf("%s\n", data["name"].(string)))
+		resultString.WriteString(fmt.Sprintf("- %s\n", data["url"].(string)))
+		resultString.WriteString(fmt.Sprintf("- %s\n", data["method"].(string))) // Assuming method is GET
+		tags := make([]string, len(data["tags"].([]interface{})))
+		for i, tag := range data["tags"].([]interface{}) {
+			tags[i] = fmt.Sprintf("%v", tag)
+		}
+		resultString.WriteString(fmt.Sprintf("- %s\n", strings.Join(tags, ", ")))
+		resultString.WriteString(fmt.Sprintf("- %s\n", data["description"].(string)))
+
+		// Generate required parameters string
+		var requiredParams []string
+		var notRequiredParams []string
+		for _, param := range data["params"].([]interface{}) {
+			paramMap, ok := param.(map[string]interface{})
+			if !ok {
+				// Handle the case where param is not a map
+				fmt.Println("param is not a map")
+				continue
+			}
+			// fmt.Println(paramMap["name"].(string))
+			// fmt.Println(paramMap["dataType"].(string))
+			if paramMap["is_required"].(bool) {
+				requiredParams = append(requiredParams, fmt.Sprintf("%s (%s)", paramMap["name"].(string), paramMap["dataType"].(string)))
+			} else {
+				notRequiredParams = append(notRequiredParams, fmt.Sprintf("%s (%s)", paramMap["name"].(string), paramMap["dataType"].(string)))
+			}
+		}
+		resultString.WriteString(fmt.Sprintf("- %s\n", strings.Join(requiredParams, ", ")))
+		resultString.WriteString(fmt.Sprintf("- %s\n", strings.Join(notRequiredParams, ", ")))
+
+		responseString = append(responseString, resultString.String())
+	}
+
+	c.Set("Content-Type", "text/plain")
+	return c.Status(fiber.StatusOK).SendString(strings.Join(responseString, "\n\n"))
 }

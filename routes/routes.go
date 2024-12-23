@@ -61,6 +61,10 @@ func Setup(app *fiber.App) {
 	officeRoute.Get("/getUserBranch", controllers.GetUserBranch)
 	officeRoute.Get("getDashboardOmzet", controllers.GetDashboardOmzet)
 	officeRoute.Get("getReceiveableDetail", controllers.GetReceiveableDetail)
+	officeRoute.Get("getCustomerAR", controllers.GetCustomerAR)
+	officeRoute.Get("getOmzetSetoran", controllers.GetDataOmzetSetoran)
+	officeRoute.Get("getDictionary", controllers.GetDictionaries)
+	officeRoute.Get("getDictionaryText", controllers.GetDictionariesText)
 
 	officeRoute.Post("postPrompt", controllers.PostPrompt)
 
