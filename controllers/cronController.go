@@ -276,7 +276,7 @@ func GenerateTransactionsUserId(c *fiber.Ctx) error {
 }
 
 func GenerateUserLog(c *fiber.Ctx) error {
-	db.DB.Exec(`INSERT INTO user_log_branch (user_id, user_id_subtitute, branch_id, start_date, end_date, last_visit_date)
+	db.DB.Exec(`INSERT INTO user_log_branch (user_id, user_id_subtitute, branch_id, start_date, end_date, last_visit_date, user_level_id)
 				SELECT sq.user_id,
 						COALESCE(sq.user_id_subtitute, -1),
 						sq.branch_id,
@@ -286,7 +286,8 @@ func GenerateUserLog(c *fiber.Ctx) error {
 							DATE(LEAD(sq.min_date, 1) OVER (PARTITION BY sq.user_id ORDER BY sq.user_id, sq.min_date)::date - INTERVAL '1 day') IS NOT NULL 
 								THEN DATE(LEAD(sq.min_date, 1) OVER (PARTITION BY sq.user_id ORDER BY sq.user_id, sq.min_date)::date - INTERVAL '1 day') 
 								ELSE sq.max_date 
-						END
+						END,
+						u.level_id
 				FROM (
 					WITH last_visit as (SELECT user_id, MAX(DATE(tanggal_kunjungan)) as tgl_kunjungan FROM kunjungan GROUP BY user_id)
 				
@@ -303,6 +304,8 @@ func GenerateUserLog(c *fiber.Ctx) error {
 						ON k.user_id = lv.user_id
 					GROUP BY k.branch_id, k.salesman_id, k.merchandiser_id, k.teamleader_id, k.user_id, k.user_id_subtitute
 				) sq
+				LEFT JOIN public.user u
+					ON sq.user_id = u.id
 				WHERE sq.user_id IS NOT NULL AND sq.user_id > 0 AND sq.branch_id IS NOT NULL
 				ORDER BY sq.user_id, sq.min_date
 				ON CONFLICT (user_id, branch_id, start_date, user_id_subtitute, last_visit_date)

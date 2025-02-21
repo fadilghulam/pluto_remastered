@@ -133,27 +133,28 @@ func GenerateStruct(db *gorm.DB) *gorm.DB {
 
 	g.UseDB(db)
 
-	// g.ApplyBasic(
-	// 	// Generate struct `User` based on table `users`
-	// 	// g.GenerateModel("otp"),
-	// 	g.GenerateModel("customer_type_request"),
-	// 	g.GenerateModel("customer_access_visit_extra"),
-	// 	g.GenerateModel("rute_move_request"),
-	// 	g.GenerateModel("customer_move_request"),
-	// 	g.GenerateModel("customer_access"),
-	// 	g.GenerateModel("salesman_access"),
-	// 	g.GenerateModel("salesman_request_so"),
-	// 	g.GenerateModel("salesman_request"),
-	// 	g.GenerateModel("salesman_access_kunjungan"),
-
-	// // 	// Generate struct `Employee` based on table `users`
-	// //    g.GenerateModelAs("users", "Employee"),
-
-	// )
-
 	g.ApplyBasic(
-		g.GenerateAllTable()...,
+		// Generate struct `User` based on table `users`
+		// g.GenerateModel("otp"),
+		g.GenerateModel("stok_gudang_pengiriman"),
+		g.GenerateModel("stok_gudang_riwayat"),
+		// g.GenerateModel("customer_access_visit_extra"),
+		// g.GenerateModel("rute_move_request"),
+		// g.GenerateModel("customer_move_request"),
+		// g.GenerateModel("customer_access"),
+		// g.GenerateModel("salesman_access"),
+		// g.GenerateModel("salesman_request_so"),
+		// g.GenerateModel("salesman_request"),
+		// g.GenerateModel("salesman_access_kunjungan"),
+
+	// 	// Generate struct `Employee` based on table `users`
+	//    g.GenerateModelAs("users", "Employee"),
+
 	)
+
+	// g.ApplyBasic(
+	// 	g.GenerateAllTable()...,
+	// )
 
 	g.Execute()
 
@@ -162,11 +163,11 @@ func GenerateStruct(db *gorm.DB) *gorm.DB {
 
 var OpenaiClient *openai.Client
 
-func InitOpenAI() {
-	apiKey := os.Getenv("OPENAI_API_KEY") // Store your API key in an environment variable
-	if apiKey == "" {
-		log.Fatal("OpenAI API key is missing")
-	}
-	OpenaiClient = openai.NewClient(apiKey)
-	log.Println("OpenAI client initialized")
-}
+// func InitOpenAI() {
+// 	apiKey := os.Getenv("OPENAI_API_KEY") // Store your API key in an environment variable
+// 	if apiKey == "" {
+// 		log.Fatal("OpenAI API key is missing")
+// 	}
+// 	OpenaiClient = openai.NewClient(apiKey)
+// 	log.Println("OpenAI client initialized")
+// }

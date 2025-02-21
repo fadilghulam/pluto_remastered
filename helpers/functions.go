@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	orderedmap2 "github.com/elliotchance/orderedmap"
 	"github.com/gofiber/fiber/v2"
 	"github.com/mitchellh/mapstructure"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
@@ -194,6 +195,65 @@ func ExecuteQuery(query string) ([]map[string]interface{}, error) {
 
 	return results[0]["data"].([]map[string]interface{}), nil
 }
+
+func ExecuteQueryOrdered(query string) (*string, error) {
+	queries := fmt.Sprintf(`SELECT JSON_AGG(data) as data FROM (%s) AS data`, query)
+
+	rows, err := db.DB.Raw(queries).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := JsonDecode(rows, columns)
+	if err != nil {
+		return nil, err
+	}
+
+	if results[0]["data"] == nil {
+		return nil, nil
+	}
+
+	// Convert []map[string]interface{} to []*orderedmap.OrderedMap
+	rawData := results[0]["data"].([]map[string]interface{})
+	orderedResults := make([]*orderedmap2.OrderedMap, len(rawData))
+
+	for i, data := range rawData {
+		orderedMap := orderedmap2.NewOrderedMap()
+		for key, value := range data {
+			orderedMap.Set(key, value)
+		}
+		orderedResults[i] = orderedMap
+	}
+
+	for i, om := range orderedResults {
+		fmt.Printf("OrderedMap at index %d:\n", i)
+		for el := om.Front(); el != nil; el = el.Next() {
+			fmt.Printf("  %s: %v\n", el.Key, el.Value)
+		}
+	}
+
+	fmt.Println(orderedResults)
+
+	// Convert orderedResults to JSON
+	jsonData, err := json.MarshalIndent(orderedResults, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(string(jsonData))
+
+	jsonString := string(jsonData)
+	return &jsonString, nil // Return pointer to JSON string
+
+	// return orderedResults, nil
+}
+
 func ExecuteQueryBot(query string) ([]map[string]interface{}, error) {
 
 	queries := fmt.Sprintf(`SELECT JSON_AGG(data) as data FROM (%s) AS data`, query)
@@ -588,45 +648,56 @@ func JsonDecode2(rows *sql.Rows, columns []string, specialCondition string) ([]*
 		log.Fatal(err)
 	}
 
-	for _, m := range result {
+	for i, m := range result {
+		if m == nil {
+			fmt.Printf("Warning: Nil value at index %d\n", i)
+			continue // Skip nil values
+		}
 
-		stringData := string(m.Value("data").([]byte))
+		// Ensure "data" exists in m and is of type []byte
+		rawBytes, ok := m.Value("data").([]byte)
+		if !ok {
+			fmt.Printf("Warning: 'data' key at index %d is missing or not []byte\n", i)
+			continue
+		}
 
+		stringData := string(rawBytes)
+
+		// Safeguard against empty data
+		if len(stringData) == 0 {
+			fmt.Printf("Warning: Empty 'data' at index %d\n", i)
+			continue
+		}
+
+		// Trim surrounding brackets if necessary
 		if stringData[0] == '[' {
 			stringData = stringData[1:]
 		}
 		if last := len(stringData) - 1; last >= 0 && stringData[last] == ']' {
 			stringData = stringData[:last]
 		}
-		// fmt.Println(stringData)
-
-		// var rawData []map[string]interface{}
-		// err := json.Unmarshal([]byte(stringData), &rawData)
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		// // Convert each map into an ordered map and recursively handle nested maps
-		// for _, item := range rawData {
-		// 	orderedRow := ConvertMapToOrderedMap(item)
-		// 	resultReturn = append(resultReturn, orderedRow)
-		// }
-
-		// fmt.Println("=====================================================")
 
 		if specialCondition == "" {
 			specialCondition = "},"
 		}
 
+		// Split the JSON string using the special condition
 		mapStringData := strings.Split(stringData, specialCondition)
-		// fmt.Println(mapStringData)
-		for _, v := range mapStringData {
-			om := orderedmap.New[string, interface{}]()
 
-			_ = om.UnmarshalJSON([]byte(v + "}"))
+		for _, v := range mapStringData {
+			if len(v) == 0 {
+				continue // Skip empty elements
+			}
+
+			om := orderedmap.New[string, interface{}]()
+			err := om.UnmarshalJSON([]byte(v + "}"))
+			if err != nil {
+				fmt.Printf("JSON Unmarshal Error at index %d: %v\n", i, err)
+				continue
+			}
+
 			resultReturn = append(resultReturn, om)
 		}
-
 	}
 
 	return resultReturn, nil
@@ -773,7 +844,7 @@ func ConvertStringToInt64(i string) int64 {
 }
 func FloatToString(input_num float64) string {
 	// to convert a float number to a string
-	return strconv.FormatFloat(input_num, 'f', 6, 64)
+	return strconv.FormatFloat(input_num, 'f', -1, 64)
 }
 
 func TrimLeftChar(s string) string {

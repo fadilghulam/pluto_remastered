@@ -17,7 +17,7 @@ func main() {
 	//db connection
 	db.Connect()
 	db.ConnectPGX()
-	db.InitOpenAI()
+	// db.InitOpenAI()
 
 	app := fiber.New()
 	app.Use(cors.New(

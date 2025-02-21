@@ -264,8 +264,8 @@ func TestGenerateDataRandom(c *fiber.Ctx) error {
 	for i := range datas {
 		// datasBot[i].ID = int32(datas[i]["id"].(int64))
 		datasBot[i].ID = datas[i]["id"].(int32)
-		datasBot[i].Name = datas[i]["name"].(string)
-		datasBot[i].ItemTypeID = 1
+		*datasBot[i].Name = datas[i]["name"].(string)
+		*datasBot[i].ItemTypeID = 1
 		// datasBot[i].ProvinceID = datas[i]["id_prov"].(string)
 
 		// fmt.Println(datas[i]["id"].(string))

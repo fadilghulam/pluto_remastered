@@ -129,7 +129,7 @@ func Login(c *fiber.Ctx) error {
 
 		tempUserID, _ := strconv.Atoi(returnedData["data"].(map[string]interface{})["id"].(string))
 
-		userSession.UserID = int32(tempUserID)
+		*userSession.UserID = int32(tempUserID)
 
 		tx := db.DB.Begin()
 
@@ -227,7 +227,7 @@ func LoginAs(c *fiber.Ctx) error {
 
 		// tempUserID, _ := strconv.Atoi(returnedData["data"].(map[string]interface{})["id"].(string))
 
-		userSession.UserID = *loginReq.ToUserId
+		userSession.UserID = loginReq.ToUserId
 		userSession.UserIDSubtitute = *loginReq.FromUserId
 
 		tx := db.DB.Begin()
@@ -303,10 +303,10 @@ func RefreshDataUser(c *fiber.Ctx) error {
 	dataMap := make(map[string]interface{})
 	if loginReq.Mode != nil && strings.ToLower(*loginReq.Mode) == "permission" {
 		dataMap["permission"] = returnedData["data"].(map[string]interface{})["permission"].(map[string]interface{})
-		dataMap["serverTime"] = time.Now()
+		dataMap["serverTime"] = time.Now().UTC()
 	} else {
 		dataMap = returnedData
-		dataMap["serverTime"] = time.Now()
+		dataMap["serverTime"] = time.Now().UTC()
 	}
 
 	dataMap["success"] = true
