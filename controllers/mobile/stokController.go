@@ -109,7 +109,7 @@ func GetProdukByGudang(c *fiber.Ctx) error {
 	// fmt.Println(where)
 
 	datas, err := helpers.NewExecuteQuery(fmt.Sprintf(`SELECT sg.id, 
-												JSONB_BUILD_OBJECT('id', sg.produk_id, 'name', p.name, 'code', p.code, 'photo', p.foto) as produk,
+												JSONB_BUILD_OBJECT('id', sg.produk_id, 'name', p.name, 'code', p.code, 'foto', p.foto) as produk,
 												harga,
 												jumlah,
 												batch,
@@ -223,7 +223,12 @@ func GetItemByGudang(c *fiber.Ctx) error {
 
 func ConfirmOrder(c *fiber.Ctx) error {
 
-	inputUser := new(structs.StokSalesmanRiwayat)
+	inputUser := &struct {
+		structs.StokSalesmanRiwayat
+		UserId2 int    `json:"userId"`
+		Type    string `json:"type"`
+	}{}
+
 	err := c.BodyParser(inputUser)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -234,16 +239,23 @@ func ConfirmOrder(c *fiber.Ctx) error {
 	}
 
 	whereConfirmKey := ""
-	if inputUser.ConfirmKey != "3kucingjantan" {
-		whereConfirmKey = " AND confirm_key = '" + inputUser.ConfirmKey + "'"
+	if inputUser.ConfirmKey != nil {
+		if *inputUser.ConfirmKey != "3nagaterbangbersama" {
+			whereConfirmKey = " AND confirm_key = '" + *inputUser.ConfirmKey + "'"
+		}
 	}
 
-	typeVar := c.FormValue("type", "PRODUK")
+	typeVar := ""
+	if inputUser.Type != "" {
+		typeVar = inputUser.Type
+	} else {
+		typeVar = "produk"
+	}
 	stokSalesmanRiwayats := []structs.StokSalesmanRiwayat{}
 	stokMerchandiserRiwayats := []structs.StokMerchandiserRiwayat{}
 
-	if typeVar == "PRODUK" {
-		err = db.DB.Where("parent_id = ? AND user_id = ?"+whereConfirmKey, inputUser.ParentId, inputUser.UserId).Find(&stokSalesmanRiwayats).Error
+	if typeVar == "produk" {
+		err = db.DB.Where("parent_id = ? AND user_id = ?"+whereConfirmKey, inputUser.ParentId, inputUser.UserId2).Find(&stokSalesmanRiwayats).Error
 		if err != nil {
 			fmt.Println(err.Error())
 			return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
@@ -252,7 +264,7 @@ func ConfirmOrder(c *fiber.Ctx) error {
 			})
 		}
 	} else {
-		err = db.DB.Where("parent_id = ? AND user_id = ?"+whereConfirmKey, inputUser.ParentId, inputUser.UserId).Find(&stokMerchandiserRiwayats).Error
+		err = db.DB.Where("parent_id = ? AND user_id = ?"+whereConfirmKey, inputUser.ParentId, inputUser.UserId2).Find(&stokMerchandiserRiwayats).Error
 		if err != nil {
 			fmt.Println(err.Error())
 			return c.Status(fiber.StatusInternalServerError).JSON(helpers.ResponseWithoutData{
@@ -262,7 +274,7 @@ func ConfirmOrder(c *fiber.Ctx) error {
 		}
 	}
 
-	if len(stokSalesmanRiwayats) == 0 || len(stokMerchandiserRiwayats) == 0 {
+	if len(stokSalesmanRiwayats) == 0 && len(stokMerchandiserRiwayats) == 0 {
 		return c.Status(fiber.StatusOK).JSON(helpers.ResponseWithoutData{
 			Message: "Data order / retur tidak ditemukan",
 			Success: false,
@@ -270,19 +282,23 @@ func ConfirmOrder(c *fiber.Ctx) error {
 	}
 
 	if len(stokSalesmanRiwayats) > 0 {
-		db.DB.Where("parent_id = ? AND user_id = ?"+whereConfirmKey, inputUser.ParentId, inputUser.UserId).Updates(structs.StokSalesmanRiwayat{
-			IsValidate: 1,
-			ConfirmKey: "",
-			DtmUpd:     time.Now(),
-		})
+		db.DB.Where("parent_id = ? AND user_id = ?"+whereConfirmKey, inputUser.ParentId, inputUser.UserId2).
+			Select("is_validate", "confirm_key", "dtm_upd").
+			Updates(structs.StokSalesmanRiwayat{
+				IsValidate: 1,
+				ConfirmKey: nil,
+				DtmUpd:     time.Now().Format("2006-01-02 15:04:05"),
+			})
 	}
 
 	if len(stokMerchandiserRiwayats) > 0 {
-		db.DB.Where("parent_id = ? AND user_id = ?"+whereConfirmKey, inputUser.ParentId, inputUser.UserId).Updates(structs.StokMerchandiserRiwayat{
-			IsValidate: 1,
-			ConfirmKey: "",
-			DtmUpd:     time.Now(),
-		})
+		db.DB.Where("parent_id = ? AND user_id = ?"+whereConfirmKey, inputUser.ParentId, inputUser.UserId2).
+			Select("is_validate", "confirm_key", "dtm_upd").
+			Updates(structs.StokMerchandiserRiwayat{
+				IsValidate: 1,
+				ConfirmKey: nil,
+				DtmUpd:     time.Now().Format("2006-01-02 15:04:05"),
+			})
 	}
 
 	params := map[string]interface{}{
@@ -627,12 +643,12 @@ func getStokParent(userId *string, date *string, userIdSubtitute *string, gudang
 						), order_gudangs as (
 							SELECT ssr.user_id, DATE(ssr.tanggal_riwayat) as dates, ssr.produk_id, ssr.condition, ssr.pita, SUM(ssr.jumlah) as qty
 							FROM stok_salesman_riwayat ssr
-							WHERE ssr.user_id = {{.QInputUserId}} AND DATE(ssr.tanggal_riwayat) = '{{.QInputDate}}' AND ssr.aksi = 'ORDER' {{.QSsrWhereSubtitute}}
+							WHERE ssr.user_id = {{.QInputUserId}} AND DATE(ssr.tanggal_riwayat) = '{{.QInputDate}}' AND ssr.aksi = 'ORDER' {{.QSsrWhereSubtitute}} AND ssr.is_validate = 1
 							GROUP BY ssr.user_id, DATE(ssr.tanggal_riwayat) , ssr.produk_id, ssr.condition, ssr.pita
 						), retur_gudangs as (
 							SELECT ssr.user_id, DATE(ssr.tanggal_riwayat) as dates, ssr.produk_id, ssr.condition, ssr.pita, SUM(ssr.jumlah) as qty
 							FROM stok_salesman_riwayat ssr
-							WHERE ssr.user_id = {{.QInputUserId}} AND DATE(ssr.tanggal_riwayat) = '{{.QInputDate}}' AND ssr.aksi = 'RETUR' {{.QSsrWhereSubtitute}}
+							WHERE ssr.user_id = {{.QInputUserId}} AND DATE(ssr.tanggal_riwayat) = '{{.QInputDate}}' AND ssr.aksi = 'RETUR' {{.QSsrWhereSubtitute}} AND ssr.is_validate = 1
 							GROUP BY ssr.user_id, DATE(ssr.tanggal_riwayat) , ssr.produk_id, ssr.condition, ssr.pita
 						), transactions as (
 							SELECT tr.user_id, DATE(tr.datetime) as dates, trd.item_id, SUM(trd.qty) as qty
@@ -644,15 +660,15 @@ func getStokParent(userId *string, date *string, userIdSubtitute *string, gudang
 						), order_items as (
 							SELECT smr.user_id, DATE(smr.tanggal_riwayat) as dates, smr.item_id, SUM(smr.jumlah) as qty
 							FROM md.stok_merchandiser_riwayat smr
-							WHERE smr.user_id = {{.QInputUserId}} AND DATE(smr.tanggal_riwayat) = '{{.QInputDate}}' AND smr.aksi = 'ORDER' {{.QSmrWhereSubtitute}}
+							WHERE smr.user_id = {{.QInputUserId}} AND DATE(smr.tanggal_riwayat) = '{{.QInputDate}}' AND smr.aksi = 'ORDER' {{.QSmrWhereSubtitute}} AND smr.is_validate = 1
 							GROUP BY smr.user_id, DATE(smr.tanggal_riwayat), smr.item_id
 						), retur_items as (
 							SELECT smr.user_id, DATE(smr.tanggal_riwayat) as dates, smr.item_id, SUM(smr.jumlah) as qty
 							FROM md.stok_merchandiser_riwayat smr
-							WHERE smr.user_id = {{.QInputUserId}} AND DATE(smr.tanggal_riwayat) = '{{.QInputDate}}' AND smr.aksi = 'RETUR' {{.QSmrWhereSubtitute}}
+							WHERE smr.user_id = {{.QInputUserId}} AND DATE(smr.tanggal_riwayat) = '{{.QInputDate}}' AND smr.aksi = 'RETUR' {{.QSmrWhereSubtitute}} AND smr.is_validate = 1
 							GROUP BY smr.user_id, DATE(smr.tanggal_riwayat), smr.item_id
 						), stok_salesmans as (
-							SELECT ss.stok_user_id,
+							SELECT MAX(ss.stok_user_id) as stok_user_id, ss.user_id,
 											JSONB_AGG(
 												JSONB_BUILD_OBJECT(
 													'id', ss.id,
@@ -668,12 +684,12 @@ func getStokParent(userId *string, date *string, userIdSubtitute *string, gudang
 													'so_admin_gudang_id', ss.so_admin_gudang_id,
 													'condition', ss.condition,
 													'pita', ss.pita,
-													'stok_awal', ss.stok_awal,
-													'orders', sso.qty,
-													'returs', ssr.qty,
-													'penjualan', pj.qty,
-													'pengembalian', pg.qty,
-													'stok_akhir', ss.stok_akhir
+													'stok_awal', COALESCE(ss.stok_awal,0) - COALESCE(sso.qty,0),
+													'orders', COALESCE(sso.qty,0),
+													'returs', COALESCE(ssr.qty,0),
+													'penjualan', COALESCE(pj.qty,0),
+													'pengembalian', COALESCE(pg.qty,0),
+													'stok_akhir', COALESCE(ss.stok_akhir,0)
 												)
 											) as detail_produks
 							FROM stok_salesman ss
@@ -702,9 +718,9 @@ func getStokParent(userId *string, date *string, userIdSubtitute *string, gudang
 								AND DATE(ss.tanggal_stok) = ssr.dates
 								AND ss.user_id = ssr.user_id
 							WHERE ss.user_id = {{.QInputUserId}} AND DATE(ss.tanggal_stok) = '{{.QInputDate}}' {{.QSSWhereSubtitute}}
-							GROUP BY ss.stok_user_id
+							GROUP BY ss.user_id
 						), stok_merchandisers as (
-							SELECT ss.stok_user_id,
+							SELECT MAX(ss.stok_user_id) as stok_user_id, ss.user_id,
 											JSONB_AGG(
 												JSONB_BUILD_OBJECT(
 													'id', ss.id,
@@ -718,12 +734,12 @@ func getStokParent(userId *string, date *string, userIdSubtitute *string, gudang
 													'is_complete', ss.is_complete,
 													'tanggal_so', ss.tanggal_so,
 													'so_admin_gudang_id', ss.so_admin_gudang_id,
-													'stok_awal', ss.stok_awal,
-													'orders', sso.qty,
-													'returs', ssr.qty,
-													'penjualan', tr.qty,
+													'stok_awal', COALESCE(ss.stok_awal,0) - COALESCE(sso.qty,0),
+													'orders', COALESCE(sso.qty,0),
+													'returs', COALESCE(ssr.qty,0),
+													'penjualan', COALESCE(tr.qty,0),
 													'pengembalian', 0,
-													'stok_akhir', ss.stok_akhir
+													'stok_akhir', COALESCE(ss.stok_akhir,0)
 												)
 											) as detail_items
 							FROM md.stok_merchandiser ss 
@@ -744,7 +760,7 @@ func getStokParent(userId *string, date *string, userIdSubtitute *string, gudang
 								AND DATE(ss.tanggal_stok) = ssr.dates
 								AND ss.user_id = ssr.user_id
 							WHERE ss.user_id = {{.QInputUserId}} AND DATE(ss.tanggal_stok) = '{{.QInputDate}}' {{.QSSWhereSubtitute}}
-							GROUP BY ss.stok_user_id
+							GROUP BY ss.user_id
 						)
 
 						SELECT su.tanggal_stok,
@@ -765,9 +781,9 @@ func getStokParent(userId *string, date *string, userIdSubtitute *string, gudang
 							ON su.user_id_subtitute = subs.id
 							AND su.user_id_subtitute <> 0
 						LEFT JOIN stok_salesmans ss
-							ON su.id = ss.stok_user_id
+							ON CASE WHEN ss.stok_user_id IS NULL THEN u.id = ss.user_id ELSE su.id = ss.stok_user_id END
 						LEFT JOIN stok_merchandisers sm
-							ON su.id = sm.stok_user_id
+							ON CASE WHEN sm.stok_user_id IS NULL THEN u.id = sm.user_id ELSE su.id = sm.stok_user_id END
 						WHERE DATE(su.tanggal_stok) = DATE('{{.QInputDate}}')
 							AND su.user_id = {{.QInputUserId}}
 							AND su.gudang_id = {{.QInputGudangId}}
@@ -892,7 +908,7 @@ func GetStoks(c *fiber.Ctx) error {
 		return err
 	}
 
-	if len(datas) > 0 {
+	if len(datas) == 0 {
 		return c.Status(fiber.StatusOK).JSON(helpers.Response{
 			Message: "Data tidak ditemukan",
 			Success: true,
@@ -904,6 +920,5 @@ func GetStoks(c *fiber.Ctx) error {
 		Message: "Berhasil mendapatkan data",
 		Success: true,
 		Data:    datas[0],
-		// Data:    nil,
 	})
 }

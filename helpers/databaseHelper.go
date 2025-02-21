@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	db "pluto_remastered/config"
@@ -60,40 +61,86 @@ func ExecuteGORMQueryWithoutResult(query string, wg *sync.WaitGroup) {
 	db.DB.Exec(query)
 }
 
+// func ExecuteGORMQueryIndexString(query string, resultsChan chan<- map[string][]map[string]interface{}, index string, wg *sync.WaitGroup) {
+// 	defer wg.Done()
+
+// 	results, _ := ExecuteQuery(query)
+
+// 	var res []map[string]interface{}
+
+// 	queries := fmt.Sprintf(`SELECT JSON_AGG(data) as data FROM (%s) AS data`, query)
+
+// 	if err := db.DB.Exec(queries).Scan(&res).Error; err != nil {
+// 		fmt.Println("a")
+// 	}
+
+// 	// fmt.Println(db.DB.Exec(queries))
+
+// 	for _, body := range results {
+
+// 		for key, value := range body {
+// 			if key == "id" || key == "customer_id" || key == "penjualan_id" ||
+// 				key == "piutang_id" || key == "pengembalian_id" || key == "kunjungan_id" ||
+// 				key == "pembayaran_piutang_id" || key == "payment_id" {
+// 				// if strings.Contains(key, "id") && (key != "user_id" || key != "user_id_subtitute")  {
+// 				switch v := value.(type) {
+// 				case json.Number:
+// 					// Convert float64 to an integer, then to a string
+// 					body[key] = v.String()
+// 				default:
+// 					// Convert other types to a string
+// 					body[key] = fmt.Sprintf("%v", value)
+// 				}
+// 			}
+
+// 		}
+// 	}
+
+// 	resultsChan <- map[string][]map[string]interface{}{index: results}
+// }
+
 func ExecuteGORMQueryIndexString(query string, resultsChan chan<- map[string][]map[string]interface{}, index string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	results, _ := ExecuteQuery(query)
-
-	var res []map[string]interface{}
-
+	var res sql.NullString
 	queries := fmt.Sprintf(`SELECT JSON_AGG(data) as data FROM (%s) AS data`, query)
 
-	if err := db.DB.Exec(queries).Scan(&res).Error; err != nil {
-		fmt.Println("a")
+	db.DB.Debug().Raw(queries).Scan(&res)
+
+	// If the result is NULL, send an empty slice to the results channel
+	if !res.Valid {
+		resultsChan <- map[string][]map[string]interface{}{index: {}}
+		return
 	}
 
-	fmt.Println(db.DB.Exec(queries))
+	var results2 []map[string]interface{}
 
-	for _, body := range results {
+	// Use a JSON decoder with UseNumber
+	decoder := json.NewDecoder(strings.NewReader(res.String))
+	decoder.UseNumber()
 
+	if err := decoder.Decode(&results2); err != nil {
+		fmt.Println("Error decoding JSON:", err)
+		resultsChan <- map[string][]map[string]interface{}{index: {}}
+		return
+	}
+
+	for _, body := range results2 {
 		for key, value := range body {
 			if key == "id" || key == "customer_id" || key == "penjualan_id" ||
 				key == "piutang_id" || key == "pengembalian_id" || key == "kunjungan_id" ||
 				key == "pembayaran_piutang_id" || key == "payment_id" {
-				// if strings.Contains(key, "id") && (key != "user_id" || key != "user_id_subtitute")  {
 				switch v := value.(type) {
 				case json.Number:
-					// Convert float64 to an integer, then to a string
 					body[key] = v.String()
+				case float64:
+					body[key] = fmt.Sprintf("%.0f", v)
 				default:
-					// Convert other types to a string
 					body[key] = fmt.Sprintf("%v", value)
 				}
 			}
-
 		}
 	}
 
-	resultsChan <- map[string][]map[string]interface{}{index: results}
+	resultsChan <- map[string][]map[string]interface{}{index: results2}
 }

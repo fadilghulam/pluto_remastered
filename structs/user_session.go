@@ -5,7 +5,7 @@ const TableNameUserSession = "public.user_session"
 // User Session mapped from table <public.user_session>
 type UserSession struct {
 	ID               int64  `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	UserID           int32  `gorm:"column:user_id" json:"user_id"`
+	UserID           *int32 `gorm:"column:user_id" json:"user_id"`
 	AppVersion       string `gorm:"column:app_version;default: null" json:"app_version"`
 	BatteryLevel     string `gorm:"column:battery_level;default: null" json:"battery_level"`
 	CarrierName      string `gorm:"column:carrier_name;default: null" json:"carrier_name"`

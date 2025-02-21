@@ -69,40 +69,77 @@ func GetListOrder(c *fiber.Ctx) error {
 	tempQ := strconv.Itoa(iPage * iPageSize)
 	qPage = " OFFSET " + tempQ
 
-	query := fmt.Sprintf(`SELECT ssr.parent_id as order_id, 
-	CASE WHEN MIN(ssr.is_validate) = 1 THEN 'Approve'
-		WHEN MIN(ssr.is_validate) = 0 AND ssr.confirm_key IS NOT NULL THEN 'Processed'
-		WHEN MIN(ssr.is_validate) = 0 AND ssr.confirm_key IS NULL THEN 'Pending' END as status,
-	ssr.condition,
-	ssr.gudang_id,
-	ssr.salesman_id,
-	to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS') as tanggal_riwayat,
-	ssr.aksi,
-	JSONB_AGG( DISTINCT
-		JSONB_BUILD_OBJECT(
-			'id_order_child', ssr.id,
-			'produk', JSONB_BUILD_OBJECT(
-									'id_produk', p.id,
-									'code', p.code,
-									'name', p.name,
-									'photo', p.foto
-								),
-			'jumlah', ssr.jumlah,
-			'condition', ssr.condition,
-			'pita', ssr.pita,
-			'gudang_id', ssr.gudang_id
-		) --ORDER BY ssr.pita DESC, ssr.id
-	) as datas
-FROM stok_salesman_riwayat ssr
-JOIN produk p
-	ON ssr.produk_id = p.id
-JOIN stok_gudang sg
-	ON p.id = sg.produk_id
-	AND ssr.condition = sg.condition
-	AND ssr.pita = sg.pita
-WHERE TRUE AND ssr.parent_id IS NOT NULL AND DATE(tanggal_riwayat) BETWEEN CURRENT_DATE -'1 month'::interval AND CURRENT_DATE %s
-GROUP BY ssr.parent_id, ssr.confirm_key, ssr.condition, ssr.gudang_id, ssr.salesman_id, to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS'), ssr.aksi
-ORDER BY to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS') DESC`, where)
+	query := fmt.Sprintf(`SELECT sq.* FROM (
+		SELECT ssr.parent_id as order_id, 
+			CASE WHEN MIN(ssr.is_validate) = 1 THEN 'Approve'
+				WHEN MIN(ssr.is_validate) = 0 AND ssr.confirm_key IS NOT NULL THEN 'Processed'
+				WHEN MIN(ssr.is_validate) = 0 AND ssr.confirm_key IS NULL THEN 'Pending' END as status,
+			ssr.condition,
+			ssr.gudang_id,
+			ssr.user_id,
+			to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS') as tanggal_riwayat,
+			ssr.aksi,
+			JSONB_AGG( DISTINCT
+				JSONB_BUILD_OBJECT(
+					'id_order_child', ssr.id,
+					'produk', JSONB_BUILD_OBJECT(
+											'id_produk', p.id,
+											'code', p.code,
+											'name', p.name,
+											'foto', p.foto
+										),
+					'jumlah', ssr.jumlah,
+					'condition', ssr.condition,
+					'pita', ssr.pita,
+					'gudang_id', ssr.gudang_id
+				) --ORDER BY ssr.pita DESC, ssr.id
+			) as datas
+		FROM stok_salesman_riwayat ssr
+		JOIN produk p
+			ON ssr.produk_id = p.id
+		JOIN stok_gudang sg
+			ON p.id = sg.produk_id
+			AND ssr.condition = sg.condition
+			AND ssr.pita = sg.pita
+		WHERE TRUE AND ssr.parent_id IS NOT NULL AND DATE(tanggal_riwayat) BETWEEN CURRENT_DATE -'1 month'::interval AND CURRENT_DATE %s
+		GROUP BY ssr.parent_id, ssr.confirm_key, ssr.condition, ssr.gudang_id, ssr.user_id, to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS'), ssr.aksi
+		ORDER BY to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS') DESC
+		) sq
+
+		UNION ALL
+
+		SELECT sq.* FROM (
+		SELECT ssr.parent_id as order_id, 
+			CASE WHEN MIN(ssr.is_validate) = 1 THEN 'Approve'
+				WHEN MIN(ssr.is_validate) = 0 AND ssr.confirm_key IS NOT NULL THEN 'Processed'
+				WHEN MIN(ssr.is_validate) = 0 AND ssr.confirm_key IS NULL THEN 'Pending' END as status,
+				null as condition,
+			ssr.gudang_id,
+			ssr.user_id,
+			to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS') as tanggal_riwayat,
+			ssr.aksi,
+			JSONB_AGG( DISTINCT
+				JSONB_BUILD_OBJECT(
+					'id_order_child', ssr.id,
+					'item', JSONB_BUILD_OBJECT(
+											'id_produk', p.id,
+											'code', p.code,
+											'name', p.name
+										),
+					'jumlah', ssr.jumlah,
+					'gudang_id', ssr.gudang_id
+				) --ORDER BY ssr.pita DESC, ssr.id
+			) as datas
+		FROM md.stok_merchandiser_riwayat ssr
+		JOIN md.item p
+			ON ssr.item_id = p.id
+		JOIN md.stok_gudang_item sg
+			ON p.id = sg.item_id
+		WHERE TRUE AND ssr.parent_id IS NOT NULL AND DATE(tanggal_riwayat) BETWEEN CURRENT_DATE -'1 month'::interval AND CURRENT_DATE %s
+		GROUP BY ssr.parent_id, ssr.confirm_key, ssr.gudang_id, ssr.user_id, to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS'), ssr.aksi
+		ORDER BY to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS') DESC
+		) sq
+		ORDER BY tanggal_riwayat DESC`, where, where)
 
 	var wg sync.WaitGroup
 	resultsChan := make(chan map[int][]map[string]interface{}, 2)
@@ -111,8 +148,6 @@ ORDER BY to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS') DESC`, where)
 		query,
 		query + qPage + qLimit,
 	}
-
-	// fmt.Println(queries)
 
 	tempResults := make([][]map[string]interface{}, len(queries))
 
@@ -311,11 +346,11 @@ func GetListOrderMD(c *fiber.Ctx) error {
 func PostOrder(c *fiber.Ctx) error {
 
 	type Products struct {
-		Id        *int    `json:"id"`
-		Qty       *int    `json:"qty"`
-		Pita      *string `json:"pita"`
-		Condition *string `json:"condition"`
-		Aksi      *string `json:"aksi"`
+		Id        *int         `json:"id"`
+		Qty       *int         `json:"qty"`
+		Pita      *interface{} `json:"pita"`
+		Condition *string      `json:"condition"`
+		Aksi      *string      `json:"aksi"`
 	}
 
 	type TemplateInputUser struct {
@@ -341,17 +376,25 @@ func PostOrder(c *fiber.Ctx) error {
 	parentId := int64(*inputUser.UserId) + time.Now().Unix()
 	for i := 0; i < len(inputUser.Products); i++ {
 		// 	tempString := *inputUser.Products[i].Id + "-" + *inputUser.Products[i].Pita + "-" + *inputUser.Products[i].Condition + "-" + *inputUser.Products[i].Aksi + *inputUser.UserId
-
+		tempString := ""
+		switch pita := (*inputUser.Products[i].Pita).(type) {
+		case int:
+			tempString = strconv.Itoa(pita)
+			// ...
+		default:
+			// handle the case where Pita is not an int
+			tempString = fmt.Sprintf("%v", pita)
+		}
 		// 	if
 		stokSalesmanRiwayat = append(stokSalesmanRiwayat, structs.StokSalesmanRiwayat{
 			ProdukId:       int16(*inputUser.Products[i].Id),
 			Jumlah:         int32(*inputUser.Products[i].Qty),
-			Pita:           *inputUser.Products[i].Pita,
+			Pita:           tempString,
 			Condition:      *inputUser.Products[i].Condition,
 			IsValidate:     0,
 			GudangId:       int16(*inputUser.GudangId),
 			UserId:         int32(*inputUser.UserId),
-			TanggalRiwayat: helpers.ParseDate(*inputUser.Date),
+			TanggalRiwayat: helpers.ParseDate(*inputUser.Date).Format("2006-01-02T15:04:05"), // or any other format you need
 			ParentId:       parentId,
 			Aksi:           *inputUser.Products[i].Aksi,
 		})
@@ -386,7 +429,7 @@ func PostOrder(c *fiber.Ctx) error {
 		WHEN MIN(ssr.is_validate) = 0 AND ssr.confirm_key IS NULL THEN 'Pending' END as status,
 	ssr.condition,
 	ssr.gudang_id,
-	ssr.salesman_id,
+	ssr.user_id,
 	to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS') as tanggal_riwayat,
 	ssr.aksi,
 	JSONB_AGG( DISTINCT
@@ -396,7 +439,7 @@ func PostOrder(c *fiber.Ctx) error {
 									'id_produk', p.id,
 									'code', p.code,
 									'name', p.name,
-									'photo', p.foto
+									'foto', p.foto
 								),
 			'jumlah', ssr.jumlah,
 			'condition', ssr.condition,
@@ -412,7 +455,7 @@ JOIN stok_gudang sg
 	AND ssr.condition = sg.condition
 	AND ssr.pita = sg.pita
 WHERE TRUE AND ssr.id IN (%s)
-GROUP BY ssr.parent_id, ssr.confirm_key, ssr.condition, ssr.gudang_id, ssr.salesman_id, to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS'), ssr.aksi
+GROUP BY ssr.parent_id, ssr.confirm_key, ssr.condition, ssr.gudang_id, ssr.user_id, to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS'), ssr.aksi
 ORDER BY to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS') DESC`, whereId))
 
 	if err != nil {
@@ -491,7 +534,7 @@ func PostOrderMD(c *fiber.Ctx) error {
 			IsValidate:     0,
 			GudangId:       int16(*inputUser.GudangId),
 			UserId:         int32(*inputUser.UserId),
-			TanggalRiwayat: helpers.ParseDate(*inputUser.Date),
+			TanggalRiwayat: helpers.ParseDate(*inputUser.Date).Format("2006-01-02T15:04:05"), // or any other format you need,
 			ParentId:       parentId,
 			Aksi:           *inputUser.Items[i].Aksi,
 		})
@@ -519,39 +562,33 @@ func PostOrderMD(c *fiber.Ctx) error {
 	whereId = whereId[:len(whereId)-1]
 
 	dataReturn, err := helpers.NewExecuteQuery(fmt.Sprintf(`SELECT ssr.parent_id as order_id, 
-	CASE WHEN MIN(ssr.is_validate) = 1 THEN 'Approve'
-		WHEN MIN(ssr.is_validate) = 0 AND ssr.confirm_key IS NOT NULL THEN 'Processed'
-		WHEN MIN(ssr.is_validate) = 0 AND ssr.confirm_key IS NULL THEN 'Pending' END as status,
-	ssr.condition,
-	ssr.gudang_id,
-	ssr.salesman_id,
-	to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS') as tanggal_riwayat,
-	ssr.aksi,
-	JSONB_AGG( DISTINCT
-		JSONB_BUILD_OBJECT(
-			'id_order_child', ssr.id,
-			'produk', JSONB_BUILD_OBJECT(
-									'id_produk', p.id,
-									'code', p.code,
-									'name', p.name,
-									'photo', p.foto
-								),
-			'jumlah', ssr.jumlah,
-			'condition', ssr.condition,
-			'pita', ssr.pita,
-			'gudang_id', ssr.gudang_id
-		) --ORDER BY ssr.pita DESC, ssr.id
-	) as datas
-FROM stok_salesman_riwayat ssr
-JOIN produk p
-	ON ssr.produk_id = p.id
-JOIN stok_gudang sg
-	ON p.id = sg.produk_id
-	AND ssr.condition = sg.condition
-	AND ssr.pita = sg.pita
-WHERE TRUE AND ssr.id IN (%s)
-GROUP BY ssr.parent_id, ssr.confirm_key, ssr.condition, ssr.gudang_id, ssr.salesman_id, to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS'), ssr.aksi
-ORDER BY to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS') DESC`, whereId))
+			CASE WHEN MIN(ssr.is_validate) = 1 THEN 'Approve'
+				WHEN MIN(ssr.is_validate) = 0 AND ssr.confirm_key IS NOT NULL THEN 'Processed'
+				WHEN MIN(ssr.is_validate) = 0 AND ssr.confirm_key IS NULL THEN 'Pending' END as status,
+			ssr.gudang_id,
+			ssr.user_id,
+			to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS') as tanggal_riwayat,
+			ssr.aksi,
+			JSONB_AGG( DISTINCT
+				JSONB_BUILD_OBJECT(
+					'id_order_child', ssr.id,
+					'produk', JSONB_BUILD_OBJECT(
+											'id_produk', p.id,
+											'code', p.code,
+											'name', p.name
+										),
+					'jumlah', ssr.jumlah,
+					'gudang_id', ssr.gudang_id
+				) --ORDER BY ssr.pita DESC, ssr.id
+			) as datas
+		FROM md.stok_merchandiser_riwayat ssr
+		JOIN md.item p
+			ON ssr.item_id = p.id
+		JOIN md.stok_gudang_item sg
+			ON p.id = sg.item_id
+		WHERE TRUE AND ssr.id IN (%s)
+		GROUP BY ssr.parent_id, ssr.confirm_key, ssr.gudang_id, ssr.user_id, to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS'), ssr.aksi
+		ORDER BY to_char(ssr.tanggal_riwayat, 'YYYY-MM-DD HH24:MI:SS') DESC`, whereId))
 
 	if err != nil {
 		fmt.Println(err.Error())

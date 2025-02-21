@@ -48,12 +48,19 @@ func Setup(app *fiber.App) {
 	app.Post("/insertTransactions", mobile.InsertTransactions)
 
 	app.Get("testRandomData", controllers.TestGenerateDataRandom)
+	app.Post("testGPT", controllers.TestGPT)
+	app.Post("testGemini", controllers.TestGemini)
+	app.Post("testOllama3", controllers.TestOllama3)
+
+	// app.Post("testParams", mobile.TestParams)
 
 	serviceRoute := app.Group("service")
 	serviceRoute.Post("doUpload", controllers.DoUpload)
 
 	officeRoute := app.Group("office")
 	// officeRoute.Use(AuthMiddleware)
+
+	officeRoute.Get("/getUserDailyReport", controllers.GetUserDailyReport)
 
 	officeRoute.Get("/getProductTrends", controllers.GetProductTrends)
 	officeRoute.Get("/TestQuery", controllers.TestQuery)
@@ -65,6 +72,8 @@ func Setup(app *fiber.App) {
 	officeRoute.Get("getOmzetSetoran", controllers.GetDataOmzetSetoran)
 	officeRoute.Get("getDictionary", controllers.GetDictionaries)
 	officeRoute.Get("getDictionaryText", controllers.GetDictionariesText)
+	officeRoute.Get("getPengiriman", controllers.GetPengiriman)
+	officeRoute.Post("updatePengiriman", controllers.UpdatePengiriman)
 
 	officeRoute.Post("postPrompt", controllers.PostPrompt)
 
