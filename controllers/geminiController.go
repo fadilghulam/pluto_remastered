@@ -27,7 +27,11 @@ func TestGemini(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
 	}
 
+<<<<<<< HEAD
 	genaiKey := ""
+=======
+	genaiKey := "AIzaSyCIXdhzC0nGoXoqL1Q59s0dcSFQmffQMrE"
+>>>>>>> c7901200c4a2c760359f195de4eb8126b5764796
 
 	ctx := context.Background()
 
